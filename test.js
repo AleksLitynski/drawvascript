@@ -6,21 +6,42 @@
 var seriesOfPipes = (function(){
 
 	var self = {
-	
+
 	create : function(diagram, imports, options){
-		// Clean up options!!!
+		// Clean up options
+		options = self.clean_options(options);
 
 		// Sanitize the user input
-		var grid         = this.compiler.gen_grid(diagram, options);
+		var grid         = self.compiler.gen_grid(diagram, options);
 		// convert to list of objects with values and neighbors
-		var tolkens      = this.compiler.gen_tolkens(grid, options);
+		var tolkens      = self.compiler.gen_tolkens(grid, options);
 		// convert tolkens to a graph
-		var graph 		 = this.compiler.gen_graph(tolkens, options);
-		// convert graph to callable pipes (or javascript eval string)
-		var pipes        = this.compiler.gen_pipes(graph, options);
+		var graph 		 = self.compiler.gen_graph(tolkens, options);
+		// distinguish between labeled edges and nodes, return new graph.
+		// ...todo...
+		// convert graph to desired output
+		// 		-- callable pipes (**default**)
+		// 		-- javascript string
+		//		-- graph constructor string (looks like the test case)
+		// 		-- debuggable thing (abs positioned, colored output). Can pause, resume, inspect, etc
+		var pipes        = self.compiler.gen_pipes(graph, options);
 		return pipes;
 	},
-
+	clean_options : function(options){
+		// The number of spaces to insert at the beginning of the first line
+		options.starting_indent = options.starting_indent || 0;
+		// The number of spaces a tab should be converted into
+		options.tab = options.tab || 4;
+		// Do the same for imported libraries
+		// Do the same for tolken overloads
+	},
+	directions : {
+		top : "top",
+		bottom : "bottom",
+		left : "left",
+		right : "right",
+		null : ""
+	},
 	compiler : {
 		gen_grid : function(input, opts){
 			// If the user passed in a string, break it on newlines
@@ -28,10 +49,10 @@ var seriesOfPipes = (function(){
 				input = input.split("\n");
 			}
 			// Let the user set the indent of the first row
-			input[0] = Array(opts.starting_indent || 0).join(" ").concat(input[0]);
+			input[0] = Array(opts.starting_indent).join(" ").concat(input[0]);
 			// Convert tabs to whatever the user set (default 4)
 			input.forEach(function(row){
-				row = row.replace(/\t/g, Array(opts.tab || 4).join(" ")))
+				row = row.replace(/\t/g, Array(opts.tab).join(" ")))
 			})
 			return input;
 		},
@@ -47,12 +68,12 @@ var seriesOfPipes = (function(){
 			}
 			tolkens.append(root);
 
-			// function that can be called once the 
+			// function that can be called once the
 			// grid is built to set up reference chains
 			function tolken(x, y){
 				return function(){
-					if( x >= 0 && y >= 0 && 
-					x < grid[0].length && 
+					if( x >= 0 && y >= 0 &&
+					x < grid[0].length &&
 					y < grid.length ){
 						return tolken_grid[x][y];
 					} else {
@@ -88,7 +109,7 @@ var seriesOfPipes = (function(){
 			})
 
 			//list of {value: " ", above, below, left, right}
-			//one of theim is "root". 
+			//one of theim is "root".
 			//Roots top/bottom/left/right are all the same
 			return tolkens;
 		},
@@ -97,16 +118,13 @@ var seriesOfPipes = (function(){
 			/* EX:
 				// "a" -- "b"
 				var graph = {
-					nodes : ["a","b"],
-					edges : [{0,1}]
+				nodes : [{name:"a", edges: [obj-ref, obj-ref2],{"b", ...],
 				}
 			*/
 
-			var graph = {
-				nodes : [],
-				edges : []
-			}
-			
+			var graph = [];
+
+
 			// go through the tolkens. Whenever I find a "node", create a node with a list of its neighbor tolkens.
 
 			// go through each node, expand all edges to make connections to each other reachable node. Note that each node can branch into a list of other nodes.
@@ -116,109 +134,79 @@ var seriesOfPipes = (function(){
 			var tolkens = opts.tolkens || self.default_tokens;
 
 		},
-		gen_pipes : function(st_graph, opts){
+		gen_pipes : function(graph, opts){
 			//turn graph into function calls
 
 		}
 	},
+	// Throws is assumed to be true, unless otherwise stated
+	// If no direction is given, assume [] directions
 	default_tolkens : {
 	//	in-left,  in-right,  in-top,  in-bottom
 	//  out-left, out-right, out-top, out-bottom
-	"-": function(in){
-		if(in == "left") {
-			return {targets:["right"], throws:true};
-		}
-		if(in == "right") {
-			return {targets:["left"], throws:true};
-		}
-		if(in == "up" || in == "down") {
-			return {targets:[], throws:true};
-		}
+	"-": {
+
+		directions.left : {targets:[directions.right]},
+		directions.right : {targets:[directions.left]}
 	},
-	"|": function(in){
-		if(in == "top") {
-			return {targets:["bottom"], throws:true};
-		}
-		if(in == "bottom") {
-			return {targets:["top"], throws:true};
-		}
-		if(in == "left" || in == "right") {
-			return {targets:[], throws:true};
-		}
+	"|": {
+		directions.top : {targets:[directions.bottom]},
+		directions.bottom : {targets:[directions.top]}
 	},
-	"+": function(in){
-		if(in == "top") {
-			return {targets:["bottom", "left", "right"], throws:false};
-		}
-		if(in == "bottom") {
-			return {targets:["top", "left", "right"], throws:false};
-		}
-		if(in == "left") {
-			return {targets:["right", "top", "bottom"], throws:false};
-		}
-		if(in == "right") {
-			return {targets:["left", "top", "bottom"], throws:false};
-		}
+	"+": {
+		directions.top : {targets:
+							[directions.bottom,
+							directions.left,
+							directions.right],
+						throws:false},
+		directions.bottom : {targets:
+							[directions.top,
+							direction.left,
+							direction.right],
+						throws:false},
+		directions.left : {targets:
+							[directions.right,
+							directions.top,
+							directions.bottom],
+						throws:false},
+		directions.right : {targets:
+							[directions.left,
+							directions.top,
+							directions.bottom],
+						throws:false}
 	},
-	" ": function(in){ // Just like a plus, but it does throw
-		if(in == "top") {
-			return {targets:["bottom", "left", "right"], throws:true};
-		}
-		if(in == "bottom") {
-			return {targets:["top", "left", "right"], throws:true};
-		}
-		if(in == "left") {
-			return {targets:["right", "top", "bottom"], throws:true};
-		}
-		if(in == "right") {
-			return {targets:["left", "top", "bottom"], throws:true};
-		}
+	" ": { // Just like a plus, but it does throw
+
+		directions.top : {targets: [	directions.bottom,
+										directions.left,
+										directions.right]},
+		directions.bottom : {targets:[	directions.top,
+										direction.left,
+										direction.right]},
+		directions.left : {targets:[	directions.right,
+										directions.top,
+										directions.bottom]},
+		directions.right : {targets:[	directions.left,
+										directions.top,
+										directions.bottom]}
 	},
-	"o": function(in){
-		if(in == "top") {
-			return {targets:["bottom"], throws:true};
-		}
-		if(in == "bottom") {
-			return {targets:["top"], throws:true};
-		}
-		if(in == "left") {
-			return {targets:["right"], throws:true};
-		}
-		if(in == "right") {
-			return {targets:["left"], throws:true};
-		}
+	"o": {
+		directions.top : {targets:[directions.bottom]},
+		directions.bottom : {targets:[directions.top]},
+		directions.left : {targets:[directions.right]},
+		directions.right : {targets:[directions.left]}
 	},
 	"<": function(in){
-		if(in == "right") {
-			return {targets:["left"], throws:true};
-		}
-		if(in == "up" || in == "down" || in == "right") {
-			return {targets:[], throws:true};
-		}
+		directions.right : {targets:[directions.left]}
 	},
 	">": function(in){
-		if(in == "left") {
-			return {targets:["right"], throws:true};
-		}
-		if(in == "up" || in == "down" || in == "left") {
-			return {targets:[], throws:true};
-		}
+		directions.left : {targets:[directions.right]}
 	},
 	"v": function(in){
-		if(in == "top") {
-			return {targets:["bottom"], throws:true};
-		}
-		if(in == "left" || in == "right" || in == "bottom") {
-			return {targets:[], throws:true};
-		}
+		directions.top : {targets:[directions.bottom]}
 	},
 	"^": function(in){
-		if(in == "bottom") {
-			return {targets:["top"], throws:true};
-		}
-		if(in == "left" || in == "right" || in == "top") {
-			return {targets:[], throws:true};
-		}
+		directions.bottom : {targets:[directions.top]}
 	}
 }
 
@@ -246,12 +234,12 @@ var seriesOfPipes = (function(){
 
 /* NOTES:
 
-tolkenize into 
+tolkenize into
 -) objects with "value" and "up, down, left, right"
 
 lexerize into
 -) word (list of border objects/targets)
--) edge 
+-) edge
 
 find items from libraries and list borders above, below, left, right
 
@@ -262,11 +250,11 @@ prune dead chains
 
 //http://asciiflow.com/
 
-	
+
 	*/
 
 
-//TEST: 
+//TEST:
 
 var logger = seriesOfPipes.create(
 [['        |                '],
@@ -275,7 +263,7 @@ var logger = seriesOfPipes.create(
  ['       log - error -+->  '],
  ['        |           |    '],
  ['        +--- other -+    '],
- ['        v                ']],	 
+ ['        v                ']],
 {
 	log : function(input, send){
 		console.log(input);
@@ -303,5 +291,3 @@ logger.on("other", function(input, send){
 	console.log("error!!");
 	console.log(input);
 });
-
-
