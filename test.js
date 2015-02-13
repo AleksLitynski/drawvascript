@@ -3,7 +3,9 @@
 
 //BODY:
 
-var seriesOfPipes = {
+var seriesOfPipes = (function(){
+
+	var self = {
 	
 	create : function(diagram, imports, options){
 		// Clean up options!!!
@@ -105,9 +107,13 @@ var seriesOfPipes = {
 				edges : []
 			}
 			
+			// go through the tolkens. Whenever I find a "node", create a node with a list of its neighbor tolkens.
+
+			// go through each node, expand all edges to make connections to each other reachable node. Note that each node can branch into a list of other nodes.
+			// remember to respect "throw".
 
 			//turn tolkens into graph
-			var tolkens = opts.tolkens || seriesOfPipes.default_tokens;
+			var tolkens = opts.tolkens || self.default_tokens;
 
 		},
 		gen_pipes : function(st_graph, opts){
@@ -216,12 +222,7 @@ var seriesOfPipes = {
 	}
 }
 
-};
-
-
-var edgeTolkens = 
-
-
+})()
 
 
 
@@ -284,7 +285,7 @@ var logger = seriesOfPipes.create(
 {
 	tab: 4,
 	starting_indent:0,
-	tolkens: edgeTolkens
+	tolkens: seriesOfPipes
 });
 
 logger.send("", {hello:"there"});
