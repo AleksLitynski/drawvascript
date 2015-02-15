@@ -254,7 +254,8 @@ var seriesOfPipes = (function(){
 			//returns "event" object. Has on and emit functions.
 			invokable : function(named_graph, opts){
 				//[{value:node_name, edges:[{value:edge_name,target:node_ref}]}]
-				
+
+
 			},
 			evalable : function(){console.log("not doing it right now, sorry.")},
 		}
@@ -494,13 +495,31 @@ prune dead chains
 //TEST:
 
 var logger = seriesOfPipes.create(
-[['        |                '],
- ['        |                '],
- ['        v                '],
- ['       log - error -+->  '],
- ['        |           |    '],
- ['        +--- other -+    '],
- ['        v                ']],
+[['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        v                                                                     '],
+ ['       log - error -+->                                                       '],
+ ['        |           |                                                         '],
+ ['        +--- other -+                                                         '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        o          -+                                                         '],
+ ['        |           |                                                         '],
+ ['        |           |                                                         '],
+ ['        +>[winning]-+                                                         '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        |                                                                     '],
+ ['        v                                                                     ']],
 {
 	log : function(input, send){
 		console.log(input);
