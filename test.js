@@ -187,7 +187,7 @@ var seriesOfPipes = (function(){
 
 			lexicon.forEach(function(node){
 				var current_node = make_node(node.value);
-				current_node.edges = self.edges_from.tolken(current_node);
+				current_node.edges = self.edges_from(current_node);
 				graph.push(current);
 				lexeme_to_node[node] = current;
 			})
@@ -248,43 +248,47 @@ var seriesOfPipes = (function(){
 			})
 
 			return nodes;
+		},
+
+		gen_target : {
+			//returns "event" object. Has on and emit functions.
+			invokable : function(named_graph, opts){
+				//[{value:node_name, edges:[{value:edge_name,target:node_ref}]}]
+				
+			},
+			evalable : function(){console.log("not doing it right now, sorry.")},
 		}
 	},
-	edges_from : {
-			tolken : function (tolken){
-				var tolken_name = self.tolken_namer(self.tolkens);
-				var connected_nodes = [];
-				var edges_to_search = [];
+	edges_from : function (tolken){
+		var tolken_name = self.tolken_namer(self.tolkens);
+		var connected_nodes = [];
+		var edges_to_search = [];
 
-				//add inital edges
-				function dir_elems(elems, dir){
-					out = [];
-					into.forEach(function(e){
-						out.push({edge:e, dir: dir});
-					})
-					return out;
+		//add inital edges
+		function dir_elems(elems, dir){
+			out = [];
+			into.forEach(function(e){
+				out.push({edge:e, dir: dir});
+			})
+			return out;
+		}
+		edges_to_search.concat(self.dir_elems(node.left, self.directions.left));
+		edges_to_search.concat(self.dir_elems(node.right, self.directions.right));
+		edges_to_search.concat(self.dir_elems(node.up, self.directions.up));
+		edges_to_search.concat(self.dir_elems(node.down, self.directions.down));
+
+		while(edges_to_search.length > 0){
+			var edge = edges_to_search.pop();
+			var next = self.next_tolken(opts.tolkens, edge.edge.edge_name, edge.dir); //null or the name of a node
+			if(next){
+				if(self.tolken_name(next.value) == "__node__"){ //if its a node, add the node to connected_nodes
+					connected_nodes.push(next);
+				} else { //if its not a node, add it to the edges_to_search
+					edges_to_search.push(next);
 				}
-				edges_to_search.concat(self.dir_elems(node.left, self.directions.left));
-				edges_to_search.concat(self.dir_elems(node.right, self.directions.right));
-				edges_to_search.concat(self.dir_elems(node.up, self.directions.up));
-				edges_to_search.concat(self.dir_elems(node.down, self.directions.down));
-
-				while(edges_to_search.length > 0){
-					var edge = edges_to_search.pop();
-					var next = self.next_tolken(opts.tolkens, edge.edge.edge_name, edge.dir); //null or the name of a node
-					if(next){
-						if(self.tolken_name(next.value) == "__node__"){ //if its a node, add the node to connected_nodes
-							connected_nodes.push(next);
-						} else { //if its not a node, add it to the edges_to_search
-							edges_to_search.push(next);
-						}
-					}
-				}
-				return connected_nodes;
-			},
-			node : function(node) {
-
 			}
+		}
+		return connected_nodes;
 	},
 	// need to replace with function
 	// Throws is assumed to be true, unless otherwise stated
@@ -404,6 +408,36 @@ var seriesOfPipes = (function(){
 			out[i] = e || out[i];
 		});
 		return out;
+	},
+	event : function(){
+		var data = {
+				events : {},
+				get(name){
+					if(events[name]){
+						events[name];
+					} else {
+						events[name] = {
+							reactions:[],
+							current_value:non_event
+						}
+					}
+				},
+				non_event:{}
+			}
+		return {
+			emit : function(target, message){
+				data.get(target).reactions.forEach(function(reaction){
+					reaction(message);
+				});
+			},
+			on : function(target, reaction){
+				var target_obj = data.get(target);
+				target_obj.reactions.push(reaction);
+				if(target_obj.current_value != data.non_event){
+					reaction(current_value)
+				}
+			}
+		}
 	}
 }
 
@@ -420,6 +454,12 @@ var seriesOfPipes = (function(){
 
 
 
+
+logger.emit("next", {hello:"there"});
+
+logger.on("", function(input, send){
+	console.log(input);
+});
 
 
 
@@ -475,7 +515,7 @@ var logger = seriesOfPipes.create(
 
 
 
-logger.send("", {hello:"there"});
+logger.emit("next", {hello:"there"});
 
 logger.on("", function(input, send){
 	console.log(input);
