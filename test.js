@@ -255,10 +255,58 @@ var seriesOfPipes = (function(){
 			invokable : function(named_graph, opts){
 				//[{value:node_name, edges:[{value:edge_name,target:node_ref}]}]
 
+				var root = self.get_root(named_graph);
+
+				var events = {};
+				function get_event(name){
+					events[name] = events[name] || self.event();
+				}
+				self.edge_ittr(root, named_graph, function(from, to, via){
+					get_event(from).on(via, function(data){
+						to(data, get_event(to).emit);
+					});
+				});
+
+				/*
+				  a -> b
+				  +- > c
+				*/
+
+				return self.get_root(events);
 
 			},
 			evalable : function(){console.log("not doing it right now, sorry.")},
 		}
+	},
+	edge_ittr : function(root, all_nodes, on_edge){
+
+		var touched_edges = {}; //source_name : {{edge_name : {target_names}}}
+		function touch_edge(node){
+			var source = touched_edges[node.value] = touched_edges[node.value] || {};
+			var target = source[node.edge.target.value] = source[node.edge.target.value] || {};
+			target[node.edge.value] = true;
+		}
+		function untouched_edges(node){
+			return node.edges.filter(function(edge){
+				return touched_edges[node.value] &&
+				touched_edges[node.value][edge.target.value] &&
+				touched_edges[node.value][edge.target.value][edge.value]
+			})
+		}
+		var nodes_to_ittr = [root];//{value:root.value, untouched_edges(root);
+		while(edges_to_ittr.length > 0){
+			var node = edges_to_ittr.pop();
+			untouched_edges(node.edges).forEach(function(edge){
+				on_edge(node.value, edge.target.value, edge.value);
+				nodes_to_ittr.push(edge.target);
+			})
+
+		}
+	},
+	get_root : function(elems){
+		return elems.filter(function(elem){
+			return elem.value =="__root__";
+		})[0];
 	},
 	edges_from : function (tolken){
 		var tolken_name = self.tolken_namer(self.tolkens);
@@ -502,12 +550,12 @@ var logger = seriesOfPipes.create(
  ['        |           |                                                         '],
  ['        +--- other -+                                                         '],
  ['        |                                                                     '],
- ['        |                                                                     '],
+ ['        |                                        <-log->                      '],
  ['        |                                                                     '],
  ['        o          -+                                                         '],
  ['        |           |                                                         '],
  ['        |           |                                                         '],
- ['        +>[winning]-+                                                         '],
+ ['        +> winning -+                                                         '],
  ['        |                                                                     '],
  ['        |                                                                     '],
  ['        |                                                                     '],
@@ -521,8 +569,10 @@ var logger = seriesOfPipes.create(
  ['        |                                                                     '],
  ['        v                                                                     ']],
 {
+	//equivelent of calling "on",
 	log : function(input, send){
 		console.log(input);
+		//equivalent of calling emit
 		send("next", {all:"done"});
 	}
 },
