@@ -4,19 +4,74 @@
 
 var seriesOfPipes = (function(){
 
+	var directions = {
+		top : "top",
+		bottom : "bottom",
+		left : "left",
+		right : "right",
+		jump : "jump"
+	};
+
+	var targets = {
+		// invokable object
+		// eval-able script
+		// add debug-able/HTML viewable code
+		// an eval-able drawing
+		// noflo graph notation
+		invokable : "invokable",
+		evalable : "evalable",
+
+	};
+
+	var opposite_direction = {
+		top : directions.bottom,
+		bottom : directions.top,
+		left : directions.right,
+		right : directions.left
+	};
+
 	var flow = {
-		right    : function(elem) {return [elem.right];},
-		left     : function(elem) {return [elem.left];},
-		up       : function(elem) {return [elem.up];},
-		down     : function(elem) {return [elem.down];},
+		right    : function(elem){
+						return [{target:elem.right, direction:directions.right}]
+					},
+		left     : function(elem){
+						return [{target:elem.left, direction:directions.left}]
+					},
+		top       : function(elem){
+						return [{target:elem.top, direction:directions.top}]
+					},
+		bottom     : function(elem){
+						return [{target:elem.bottom, direction:directions.bottom}]
+					},
 
-		xRight 	 : function(elem) {return [elem.left, elem.up, elem.down];},
-		xLeft  	 : function(elem) {return [elem.right, elem.down, elem.up];},
-		xUp    	 : function(elem) {return [elem.down, elem.right, elem.left];},
-		xDown  	 : function(elem) {return [elem.up, elem.right, elem.left];},
+		xRight 	 : function(elem){
+						return [
+							{target:elem.left, direction:directions.left},
+							{target:elem.top, direction:directions.top},
+							{target:elem.bottom, direction:directions.bottom}]
+					},
+		xLeft  	 : function(elem){
+						return [
+							{target:elem.right, direction:directions.right},
+							{target:elem.bottom, direction:directions.bottom},
+							{target:elem.top, direction:directions.top}]
+					},
+		xTop   	 : function(elem){
+						return [
+							{target:elem.bottom, direction:directions.bottom},
+							{target:elem.right, direction:directions.right},
+							{target:elem.left, direction:directions.left}]
+					},
+		xBottom	 : function(elem){
+						return [
+							{target:elem.top, direction:directions.top},
+							{target:elem.right, direction:directions.right},
+							{target:elem.left, direction:directions.left}]
+					},
 
-		filter : function(elems, filter) {
-			var fELems = [];
+		filter : function(elems, filter, tolkens) {
+			var tolken_name = tolken_namer(tolkens);
+			var fElems = [];
 			forEach(elems, function(elem){
 				if(	tolken_name(elem) != filter) {
 					fElems.append(elem);
@@ -25,10 +80,10 @@ var seriesOfPipes = (function(){
 			return fElems;
 		},
 
-		mFilter : function(elems, filters){
-			var fELems = elems;
+		mFilter : function(elems, filters, tolkens){
+			var fElems = [];
 			forEach(filters, function(filter){
-				fELems.append(flow.fTolkens(fElems, filter));
+				fElems = fElems.concat(flow.filter(fElems, filter, tolkens));
 			})
 			return fElems;
 		}
@@ -63,8 +118,7 @@ var seriesOfPipes = (function(){
 		// The number of spaces a tab should be converted into
 		options.tab = options.tab || 4;
 
-		options.get_prev = options.get_prev || function(e) {return e.left};
-		options.get_next = options.get_next || function(e) {return e.right};
+		options.text_dir = options.get_prev ||  directions.right;
 
 		options.imports = transpose(options.imports || [], imports);
 		options.tolkens = transpose(tolkens, options.tolkens || []);
@@ -146,33 +200,34 @@ var seriesOfPipes = (function(){
 			return tolkens;
 		},
 
-		// (name, ([up], [down], [left], [right]))
-		// groups sequences into single objects with multiple up/down/left/right
+		// (name, ([top], [bottom], [left], [right]))
+		// groups sequences into single objects with multiple top/bottom/left/right
 		gen_lexicon : function(tolkens, opts) {
+			var tolken_to_node = {};
 			var nodes = [];
 			var graph_root = {};
-
 			var tolken_name = tolken_namer(opts.tolkens);
 
 			forEach(tolkens, function(tolken){
-				//lexemes, unlike tolkens, can have more than 1 top/bottom/left/right
-				tolken.left = [tolken.left];
-				tolken.right = [tolken.right];
-				tolken.top = [tolken.top];
-				tolken.bottom = [tolken.bottom];
 				if(tolken.value == "__root__"){
-					graph_root = tolken;
+					graph_root = {value:tolken.value, left:[],right:[],top:[],bottom:[]};
 					return;
 				}
 
 				// put all the first-node-in-lexemes in an array
-				if(tolken_name(tolken) == "__node__" &&
-				(tolken_name(opts.get_prev(tolken)[0]) != "__node__" || opts.get_prev(tolken)[0].value == "__root__")){
-					nodes.push(tolken);
-					return;
+				if(tolken_name(tolken) == "__node__"){
+					if(tolken_name(tolken[opposite_direction[opts.text_dir]]) != "__node__" ||
+					tolken[opposite_direction[opts.text_dir]].value == "__root__"){
+						var node = {value:tolken.value, left:[tolken.left],right:[tolken.right],top:[tolken.top],bottom:[tolken.bottom]};
+						nodes.push(node);
+						tolken_to_node[tolken] = node;
+						return;
+					}
 				}
 
 			});
+
+
 
 			//connect the border (__root__) to the nodes that touch the border
 			forEach(tolkens, function(tolken){
@@ -180,28 +235,72 @@ var seriesOfPipes = (function(){
 				if(tolken.right.value == "__root__"){graph_root.left.push(tolken)};
 				if(tolken.top.value == "__root__"){graph_root.bottom.push(tolken)};
 				if(tolken.bottom.value == "__root__"){graph_root.top.push(tolken)};
-			})
+			});
 
 			// we now have a list of the beginning of each node.
 			// keep appending tolkens until we build while symbols.
 			forEach(nodes, function(node){
-				var next = opts.get_next(node)[0];
+				var next = node[opts.text_dir][0];
 				while(tolken_name(next) == "__node__" &&
 						next.value != "__root__"){
 					node.value += next.value;
-					node.top    = node.top.concat(next.left);
-					node.bottom = node.bottom.concat(next.bottom);
-					node.left   = node.left.concat(next.left);
-					node.right  = node.right.concat(next.right);
-					if(opts.get_next(next)){
-						next = opts.get_next(next)[0];
+					tolken_to_node[next] = node;
+					forEach(tolken_to_node, function(t, i){
+						console.log(t.value + " -> " + i.value)
+					})
+
+					//remove item you're absorbing
+					node[opts.text_dir].splice(node[opts.text_dir].indexOf(next), 1);
+
+					//if we're going top/bottom or left/right, don't add items on those sides.
+					if(opts.text_dir == directions.left || opts.text_dir == directions.right){
+						node.top.push(next.top);
+						next.top.bottom = node;
+						node.bottom.push(next.bottom);
+						next.bottom.top = node;
+					}
+					if(opts.text_dir == directions.top || opts.text_dir == directions.bottom){
+						node.left.push(next.left);
+						next.left.right = node;
+						node.right.push(next.right);
+						next.right.left = node;
+					}
+
+					//if we're at the end of the line, add in the last element
+					if(tolken_name(next[opts.text_dir]) != "__node__" ||
+						next[opts.text_dir].value == "__root__" ){
+						node[opts.text_dir].push(next[opts.text_dir]);
+					}
+
+					// get the next node, if it exists.
+					if(next[opts.text_dir]){
+						next = next[opts.text_dir];
 					} else {
-						next = undefined;
+						break;
+						//next = undefined;
 					}
 				}
 			});
 
 			nodes.push(graph_root);
+
+
+			for(var j = 0; j < nodes.length; j++){
+				for(var i = 0; i < nodes[j].left.length; i++){
+					console.log(nodes[j].left[i].value + " ==> " + tolken_to_node[nodes[j].left[i]].value)
+					nodes[j].left[i] = tolken_to_node[nodes[j].left[i]] || nodes[j].left[i];
+				}
+				for(var i = 0; i < nodes[j].right.length; i++){
+					nodes[j].right[i] = tolken_to_node[nodes[j].right[i]] || nodes[j].right[i];
+				}
+				for(var i = 0; i < nodes[j].top.length; i++){
+					nodes[j].top[i] = tolken_to_node[nodes[j].top[i]] || nodes[j].top[i];
+				}
+				for(var i = 0; i < nodes[j].bottom.length; i++){
+					nodes[j].bottom[i] = tolken_to_node[nodes[j].bottom[i]] || nodes[j].bottom[i];
+				}
+			}
+
 
 			forEach(nodes, function(node){
 				function aaa(e){var o = "";forEach(e, function(ee){o += ee.value + ", ";});return o;};
@@ -213,31 +312,24 @@ var seriesOfPipes = (function(){
 				console.log("")
 			})
 
+
 			return nodes;
 		},
 		// [{value:node_name, edges[node_refs]}]
 		gen_graph : function(lexicon, opts){
 			var graph = [];
-			var lexeme_to_node = {};
-
-			function make_node(value){
-				return {
-					value : value,
-					edges : []
-				}
-			}
+			var node_to_lexeme = {};
 
 			forEach(lexicon, function(node){
-				var current_node = make_node(node.value);
-				current_node.edges = edges_from(current_node);
-				graph.push(current);
-				lexeme_to_node[node] = current;
+				var current_node = {value:node.value, edges:edges_from(node, opts)};
+				graph.push(current_node);
+				node_to_lexeme[node] = current_node;
 			})
 
 			//go over graph and "pull tight" all the edge targets.
 			forEach(graph, function(node){
 				for(var i = 0; i < node.edges.length; i++){
-					node.edges[i] = lexeme_to_node[node.edges[i]];
+					node.edges[i] = node_to_lexeme[node.edges[i]];
 				}
 			})
 
@@ -353,36 +445,47 @@ var seriesOfPipes = (function(){
 		})[0];
 	}
 
-	function edges_from(tolken){
-		var tolken_name = tolken_namer(tolkens);
-		var connected_nodes = [];
-		var edges_to_search = [];
+	function edges_from(node, opts){
+		var tolken_name = tolken_namer(opts.tolkens);
 
-		//add inital edges
-		function dir_elems(elems, dir){
-			out = [];
-			forEach(into, function(e){
-				out.push({edge:e, dir: dir});
+		function all_nodes_reachable_from_tolken(tolken, direction){
+			var out = [];
+			var next_elems = opts.tolkens[tolken_name(tolken)][direction] || function(){};
+			forEach(next_elems(tolken, opts.tolkens), function(next){
+			//	console.log("		["+next.target.value+"]");
+				if(next){
+					if(tolken_name(next.target) == "__node__"){
+						//if its a node, add the node to connected_nodes
+						out.push(next.target);
+					} else {
+						//if its not a node, add it to the edges_to_search
+						out = out.concat(all_nodes_reachable_from_tolken(next.target, next.direction));
+					}
+				}
+			});
+			return out;
+		}
+
+		function all_nodes_reachable_from_edge(edge){
+			var out = [];
+			forEach(node[edge], function(tolken){
+				opts.tolkens["__node__"][edge]
+				var nxt = all_nodes_reachable_from_tolken(tolken, edge);
+				out = out.concat(nxt)
+
+				var z = "";
+				forEach(nxt, function(n){z += n.value + ", ";});
+		//		console.log("	[" + tolken.value + "] => [" + z + "]");
 			})
 			return out;
 		}
-		edges_to_search.concat(dir_elems(node.left, directions.left));
-		edges_to_search.concat(dir_elems(node.right, directions.right));
-		edges_to_search.concat(dir_elems(node.up, directions.up));
-		edges_to_search.concat(dir_elems(node.down, directions.down));
+	//	console.log("["+node.value+"]");
+		var out = all_nodes_reachable_from_edge(directions.left)
+			.concat(all_nodes_reachable_from_edge(directions.right))
+			.concat(all_nodes_reachable_from_edge(directions.top))
+			.concat(all_nodes_reachable_from_edge(directions.bottom));
 
-		while(edges_to_search.length > 0){
-			var edge = edges_to_search.pop();
-			var next = next_tolken(opts.tolkens, edge.edge.edge_name, edge.dir); //null or the name of a node
-			if(next){
-				if(tolken_name(next) == "__node__"){ //if its a node, add the node to connected_nodes
-					connected_nodes.push(next);
-				} else { //if its not a node, add it to the edges_to_search
-					edges_to_search.push(next);
-				}
-			}
-		}
-		return connected_nodes;
+		return out;
 	}
 
 	// need to replace with function
@@ -398,10 +501,10 @@ var seriesOfPipes = (function(){
 			"bottom" : flow.top
 		},
 		"+": {
-			"top" : function(elem){flow.filter(flow.xTop(elem), " ")},
-			"bottom" : function(elem){flow.filter(flow.xBottom(elem), " ")},
-			"left" : function(elem){flow.filter(flow.xLeft(elem), " ")},
-			"right" : function(elem){flow.filter(flow.xRight(elem), " ")}
+			"top" : function(elem, tolkens){return flow.filter(flow.xTop(elem), " ", tolkens)},
+			"bottom" : function(elem, tolkens){return flow.filter(flow.xBottom(elem), " ", tolkens)},
+			"left" : function(elem, tolkens){return flow.filter(flow.xLeft(elem), " ", tolkens)},
+			"right" : function(elem, tolkens){return flow.filter(flow.xRight(elem), " ", tolkens)}
 		},
 		" ": { // Just like a plus, but it does pass into spaces
 			"top" : flow.xTop,
@@ -421,42 +524,11 @@ var seriesOfPipes = (function(){
 		"^": {"bottom" : flow.top},
 		"__node__" : {
 			// any sequence not listed above is a "node"
-			"top" : function(elem){flow.mFilter(flow.bottom(elem), ["__node__", " "])},
-			"bottom" : function(elem){flow.mFilter(flow.top(elem), ["__node__", " "])},
-			"left" : function(elem){flow.mFilter(flow.right(elem), ["__node__", " "])},
-			"right" : function(elem){flow.mFilter(flow.left(elem), ["__node__", " "])}
+			"top" : function(elem, tolkens){return flow.mFilter(flow.bottom(elem), ["__node__", " "], tolkens)},
+			"bottom" : function(elem, tolkens){return flow.mFilter(flow.top(elem), ["__node__", " "], tolkens)},
+			"left" : function(elem, tolkens){return flow.mFilter(flow.right(elem), ["__node__", " "], tolkens)},
+			"right" : function(elem, tolkens){return flow.mFilter(flow.left(elem), ["__node__", " "], tolkens)}
 		}
-	};
-
-	function next_tolken(tolken_table, tolken, direction){
-		var tolken_name = tolken_namer(tolken_table);
-		return tolken_table[tolken_name(tolken)][direction];
-	}
-
-	var directions = {
-		top : "top",
-		bottom : "bottom",
-		left : "left",
-		right : "right",
-		jump : "jump"
-	};
-
-	var targets = {
-		// invokable object
-		// eval-able script
-		// add debug-able/HTML viewable code
-		// an eval-able drawing
-		// noflo graph notation
-		invokable : "invokable",
-		evalable : "evalable",
-
-	};
-
-	var opposite_direction = {
-		top : function(){return directions.bottom},
-		bottom : function(){return directions.top},
-		left : function(){return directions.right},
-		right : function(){return directions.left}
 	};
 
 	function tolken_namer(tolkens){
@@ -517,6 +589,7 @@ var seriesOfPipes = (function(){
 	}
 
 	function forEach(obj, withEach){
+		if(!obj){return;}
 		if(obj.constructor === Array){
 			for(var index = 0; index < obj.length; index++){
 				withEach(obj[index], index);
@@ -525,6 +598,15 @@ var seriesOfPipes = (function(){
 			for(var index in obj){
 				withEach(obj[index], index);
 			}
+		}
+	}
+
+	function conpend(a, b){
+		if(b.constructor == Array){
+			return a.concat(b);
+		} else {
+			a.push(b);
+			return a;
 		}
 	}
 
@@ -562,7 +644,7 @@ var seriesOfPipes = (function(){
 /* NOTES:
 
 tolkenize into
--) objects with "value" and "up, down, left, right"
+-) objects with "value" and "top, bottom, left, right"
 
 lexerize into
 -) word (list of border objects/targets)
@@ -643,6 +725,8 @@ logger.on("other", function(input, send){
 */
 
 
+
+
 var logger = seriesOfPipes.create(
 	[' v ',
 	 'log',
@@ -654,9 +738,7 @@ var logger = seriesOfPipes.create(
 		}
 	}
 )
-
 /*
-
 var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
 console.log("["+" "+"]["+ sr(tolken.top.value)+"]["+" "+"]");
 console.log("["+sr(tolken.left.value)+"]["+ sr(tolken.value)+"]["+sr(tolken.right.value)+"]");
