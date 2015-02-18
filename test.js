@@ -1,4 +1,4 @@
-
+// This project is called "drawvascript" (pun on javascript, draw-va, java, get it, damn it)
 
 //BODY:
 
@@ -203,12 +203,17 @@ var seriesOfPipes = (function(){
 		// (name, ([top], [bottom], [left], [right]))
 		// groups sequences into single objects with multiple top/bottom/left/right
 		gen_lexicon : function(tolkens, opts) {
-			var tolken_to_node = {};
 			var nodes = [];
 			var graph_root = {};
+			//A map from tolken IDs to the tolken they are a part of after compaction
 			var tolken_name = tolken_namer(opts.tolkens);
+			var tolken_id_to_node = {};
 
+			var tidIdx = 0;
 			forEach(tolkens, function(tolken){
+				tolken.id = tidIdx;
+				tidIdx++;
+
 				if(tolken.value == "__root__"){
 					graph_root = {value:tolken.value, left:[],right:[],top:[],bottom:[]};
 					return;
@@ -220,14 +225,12 @@ var seriesOfPipes = (function(){
 					tolken[opposite_direction[opts.text_dir]].value == "__root__"){
 						var node = {value:tolken.value, left:[tolken.left],right:[tolken.right],top:[tolken.top],bottom:[tolken.bottom]};
 						nodes.push(node);
-						tolken_to_node[tolken] = node;
+						tolken_id_to_node[tolken.id] = node;
 						return;
 					}
 				}
 
 			});
-
-
 
 			//connect the border (__root__) to the nodes that touch the border
 			forEach(tolkens, function(tolken){
@@ -237,6 +240,7 @@ var seriesOfPipes = (function(){
 				if(tolken.bottom.value == "__root__"){graph_root.top.push(tolken)};
 			});
 
+
 			// we now have a list of the beginning of each node.
 			// keep appending tolkens until we build while symbols.
 			forEach(nodes, function(node){
@@ -244,26 +248,20 @@ var seriesOfPipes = (function(){
 				while(tolken_name(next) == "__node__" &&
 						next.value != "__root__"){
 					node.value += next.value;
-					tolken_to_node[next] = node;
-					forEach(tolken_to_node, function(t, i){
-						console.log(t.value + " -> " + i.value)
-					})
+					tolken_id_to_node[next.id] = node;
 
-					//remove item you're absorbing
+
+					//remove item you're absorbing from own text_dir side
 					node[opts.text_dir].splice(node[opts.text_dir].indexOf(next), 1);
 
 					//if we're going top/bottom or left/right, don't add items on those sides.
 					if(opts.text_dir == directions.left || opts.text_dir == directions.right){
 						node.top.push(next.top);
-						next.top.bottom = node;
 						node.bottom.push(next.bottom);
-						next.bottom.top = node;
 					}
 					if(opts.text_dir == directions.top || opts.text_dir == directions.bottom){
 						node.left.push(next.left);
-						next.left.right = node;
 						node.right.push(next.right);
-						next.right.left = node;
 					}
 
 					//if we're at the end of the line, add in the last element
@@ -277,31 +275,50 @@ var seriesOfPipes = (function(){
 						next = next[opts.text_dir];
 					} else {
 						break;
-						//next = undefined;
 					}
 				}
 			});
-
 			nodes.push(graph_root);
 
 
-			for(var j = 0; j < nodes.length; j++){
-				for(var i = 0; i < nodes[j].left.length; i++){
-					console.log(nodes[j].left[i].value + " ==> " + tolken_to_node[nodes[j].left[i]].value)
-					nodes[j].left[i] = tolken_to_node[nodes[j].left[i]] || nodes[j].left[i];
+			// Make references to "l"|"o"|"g" ==> "log"
+			function cTolken(tolken){
+				return tolken_id_to_node[tolken.id] || tolken
+			}
+			for(var i = 0; i < tolkens.length; i++){
+				tolkens[i].left = cTolken(tolkens[i].left);
+				tolkens[i].right = cTolken(tolkens[i].right);
+				tolkens[i].top = cTolken(tolkens[i].top);
+				tolkens[i].bottom = cTolken(tolkens[i].bottom);
+			}
+			// Kills me to use a for-loop, but there were assignment by reference vs. value issues
+			for(var i = 0; i < nodes.length; i++){
+				for(var j = 0; j < nodes[i].left.length; j++){
+					nodes[i].left[j] = cTolken(nodes[i].left[j]);
 				}
-				for(var i = 0; i < nodes[j].right.length; i++){
-					nodes[j].right[i] = tolken_to_node[nodes[j].right[i]] || nodes[j].right[i];
+				for(var j = 0; j < nodes[i].right.length; j++){
+					nodes[i].right[j] = cTolken(nodes[i].right[j]);
 				}
-				for(var i = 0; i < nodes[j].top.length; i++){
-					nodes[j].top[i] = tolken_to_node[nodes[j].top[i]] || nodes[j].top[i];
+				for(var j = 0; j < nodes[i].bottom.length; j++){
+					nodes[i].bottom[j] = cTolken(nodes[i].bottom[j]);
 				}
-				for(var i = 0; i < nodes[j].bottom.length; i++){
-					nodes[j].bottom[i] = tolken_to_node[nodes[j].bottom[i]] || nodes[j].bottom[i];
+				for(var j = 0; j < nodes[i].top.length; j++){
+					nodes[i].top[j] = cTolken(nodes[i].top[j]);
 				}
 			}
 
+			// remove duplicates
+			forEach(nodes, function(node){
+				function uniques(itm, pos, self){
+					return self.indexOf(itm) == pos;
+				}
+				node.left = node.left.filter(uniques);
+				node.right = node.right.filter(uniques);
+				node.top = node.top.filter(uniques);
+				node.bottom = node.bottom.filter(uniques);
+			})
 
+			/*
 			forEach(nodes, function(node){
 				function aaa(e){var o = "";forEach(e, function(ee){o += ee.value + ", ";});return o;};
 				console.log(node.value);
@@ -311,6 +328,7 @@ var seriesOfPipes = (function(){
 				console.log("	bottom: ", aaa(node.bottom))
 				console.log("")
 			})
+			*/
 
 
 			return nodes;
@@ -319,9 +337,10 @@ var seriesOfPipes = (function(){
 		gen_graph : function(lexicon, opts){
 			var graph = [];
 			var node_to_lexeme = {};
-
 			forEach(lexicon, function(node){
+						console.log("trucking");
 				var current_node = {value:node.value, edges:edges_from(node, opts)};
+							console.log("so hard");
 				graph.push(current_node);
 				node_to_lexeme[node] = current_node;
 			})
@@ -446,11 +465,13 @@ var seriesOfPipes = (function(){
 	}
 
 	function edges_from(node, opts){
+		console.log("WOO");
 		var tolken_name = tolken_namer(opts.tolkens);
 
 		function all_nodes_reachable_from_tolken(tolken, direction){
 			var out = [];
 			var next_elems = opts.tolkens[tolken_name(tolken)][direction] || function(){};
+			console.log(opts.tolkens[tolken_name(tolken)])
 			forEach(next_elems(tolken, opts.tolkens), function(next){
 			//	console.log("		["+next.target.value+"]");
 				if(next){
@@ -602,7 +623,7 @@ var seriesOfPipes = (function(){
 	}
 
 	function conpend(a, b){
-		if(b.constructor == Array){
+		if(b.constructor === Array){
 			return a.concat(b);
 		} else {
 			a.push(b);
@@ -728,9 +749,9 @@ logger.on("other", function(input, send){
 
 
 var logger = seriesOfPipes.create(
-	[' v ',
-	 'log',
-	 ' | '],
+	[' v   ',
+	 'log  ',
+	 ' |woo'],
 	{
 		log: function(input, send){
 			console.log(input);
