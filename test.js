@@ -44,6 +44,14 @@ var seriesOfPipes = (function(){
 						return [{target:elem.bottom, direction:directions.bottom}]
 					},
 
+		all 	 : function(elem){
+						return [
+							{target:elem.right, direction:directions.right},
+							{target:elem.left, direction:directions.left},
+							{target:elem.top, direction:directions.top},
+							{target:elem.bottom, direction:directions.bottom}]
+					},
+
 		xRight 	 : function(elem){
 						return [
 							{target:elem.left, direction:directions.left},
@@ -71,21 +79,23 @@ var seriesOfPipes = (function(){
 
 		filter : function(elems, filter, tolkens) {
 			var tolken_name = tolken_namer(tolkens);
-			var fElems = [];
-			forEach(elems, function(elem){
-				if(	tolken_name(elem) != filter) {
-					fElems.append(elem);
-				}
+			return elems.filter(function(elem){
+				return tolken_name(elem.target) != filter
 			})
-			return fElems;
 		},
 
-		mFilter : function(elems, filters, tolkens){
-			var fElems = [];
-			forEach(filters, function(filter){
-				fElems = fElems.concat(flow.filter(fElems, filter, tolkens));
+		node : function(elem, tolkens){
+			var flatElems = [];
+			forEach(flow.all(elem), function(tolken_group){
+				forEach(tolken_group.target, function(tolken){
+					flatElems.push({target:tolken, direction:
+						opposite_direction[tolken_group.direction]});
+				})
 			})
-			return fElems;
+			flatElems = flow.filter(flatElems, " ", tolkens)
+			flatElems = flow.filter(flatElems, "__node__", tolkens)
+
+			return flatElems;
 		}
 	};
 
@@ -165,7 +175,6 @@ var seriesOfPipes = (function(){
 
 			// gets a grid tolken at x/y, or returns root
 			function tolken_at (x, y){
-
 				if( x >= 0 &&
 						y >= 0 &&
 						x < grid[0].length &&
@@ -179,19 +188,20 @@ var seriesOfPipes = (function(){
 			// copy the grid into a list and set left/right/top/bottom to refs.
 			forEach(tolken_grid, function(row, x){
 				forEach(row, function(tolken, y){
-					tolken.top    = tolken_at(x, y-1);
-					tolken.bottom = tolken_at(x, y+1);
+					tolken.top    = tolken_at(x, y+1);
+					tolken.bottom = tolken_at(x, y-1);
 					tolken.left   = tolken_at(x-1, y);
 					tolken.right  = tolken_at(x+1, y);
 
 					/*
-						console.log(x, y);
-						var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
-						console.log("["+" "+"]["+ sr(tolken.top.value)+"]["+" "+"]");
-						console.log("["+sr(tolken.left.value)+"]["+ sr(tolken.value)+"]["+sr(tolken.right.value)+"]");
-						console.log("["+" "+"]["+ sr(tolken.bottom.value)+"]["+" "+"]");
-						console.log();
+					console.log(x, y);
+					var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
+					console.log("["+" "+				  "]["+ sr(tolken.top.value)+   "]["+" "+                   "]");
+					console.log("["+sr(tolken.left.value)+"]["+ sr(tolken.value)+       "]["+sr(tolken.right.value)+"]");
+					console.log("["+" "+                  "]["+ sr(tolken.bottom.value)+"]["+" "+                   "]");
+					console.log();
 					*/
+
 
 					tolkens.push(tolken);
 				})
@@ -338,9 +348,7 @@ var seriesOfPipes = (function(){
 			var graph = [];
 			var node_to_lexeme = {};
 			forEach(lexicon, function(node){
-						console.log("trucking");
 				var current_node = {value:node.value, edges:edges_from(node, opts)};
-							console.log("so hard");
 				graph.push(current_node);
 				node_to_lexeme[node] = current_node;
 			})
@@ -465,46 +473,44 @@ var seriesOfPipes = (function(){
 	}
 
 	function edges_from(node, opts){
-		console.log("WOO");
 		var tolken_name = tolken_namer(opts.tolkens);
 
-		function all_nodes_reachable_from_tolken(tolken, direction){
+				console.log(node.value + ": ");
+		function all_nodes_reachable_from(tolken, direction, path){
 			var out = [];
-			var next_elems = opts.tolkens[tolken_name(tolken)][direction] || function(){};
-			console.log(opts.tolkens[tolken_name(tolken)])
-			forEach(next_elems(tolken, opts.tolkens), function(next){
-			//	console.log("		["+next.target.value+"]");
-				if(next){
-					if(tolken_name(next.target) == "__node__"){
-						//if its a node, add the node to connected_nodes
-						out.push(next.target);
-					} else {
-						//if its not a node, add it to the edges_to_search
-						out = out.concat(all_nodes_reachable_from_tolken(next.target, next.direction));
-					}
-				}
-			});
+			var next_elems = opts.tolkens[tolken_name(tolken)][direction];
+			// either we're at the end, or we've looped back on ourself
+			if(next_elems == undefined || path.indexOf(tolken) >= 0) {return;}
+
+			forEach(next_elems(tolken, opts.tolkens),
+					function(next){
+						if(tolken_name(next.target) == "__node__"){
+							out.push(next.target);
+						} else {
+							out = out.concat(
+								all_nodes_reachable_from(
+									next.target,
+									next.direction,
+									path.concat([tolken])
+								));
+						}
+					});
 			return out;
 		}
 
-		function all_nodes_reachable_from_edge(edge){
-			var out = [];
-			forEach(node[edge], function(tolken){
-				opts.tolkens["__node__"][edge]
-				var nxt = all_nodes_reachable_from_tolken(tolken, edge);
-				out = out.concat(nxt)
+		var out = [];
+		forEach(opts.tolkens[tolken_name(node)]["any"](node, opts.tolkens),
+					function(tolken_direction){
+						console.log("	Hits [" + tolken_direction.target.value + "] from the [" + tolken_direction.direction + "]");
+						out = out.concat(all_nodes_reachable_from(
+							tolken_direction.target,
+							tolken_direction.direction,
+							[]))
+				})
 
-				var z = "";
-				forEach(nxt, function(n){z += n.value + ", ";});
-		//		console.log("	[" + tolken.value + "] => [" + z + "]");
-			})
-			return out;
-		}
-	//	console.log("["+node.value+"]");
-		var out = all_nodes_reachable_from_edge(directions.left)
-			.concat(all_nodes_reachable_from_edge(directions.right))
-			.concat(all_nodes_reachable_from_edge(directions.top))
-			.concat(all_nodes_reachable_from_edge(directions.bottom));
+		forEach(out, function(o){
+			console.log("	" + o.value);
+		})
 
 		return out;
 	}
@@ -545,10 +551,7 @@ var seriesOfPipes = (function(){
 		"^": {"bottom" : flow.top},
 		"__node__" : {
 			// any sequence not listed above is a "node"
-			"top" : function(elem, tolkens){return flow.mFilter(flow.bottom(elem), ["__node__", " "], tolkens)},
-			"bottom" : function(elem, tolkens){return flow.mFilter(flow.top(elem), ["__node__", " "], tolkens)},
-			"left" : function(elem, tolkens){return flow.mFilter(flow.right(elem), ["__node__", " "], tolkens)},
-			"right" : function(elem, tolkens){return flow.mFilter(flow.left(elem), ["__node__", " "], tolkens)}
+			"any" : flow.node
 		}
 	};
 
@@ -613,11 +616,15 @@ var seriesOfPipes = (function(){
 		if(!obj){return;}
 		if(obj.constructor === Array){
 			for(var index = 0; index < obj.length; index++){
-				withEach(obj[index], index);
+				if(obj[index] != undefined){
+					withEach(obj[index], index);
+				}
 			}
 		} else {
 			for(var index in obj){
-				withEach(obj[index], index);
+				if(obj[index] != undefined){
+					withEach(obj[index], index);
+				}
 			}
 		}
 	}
@@ -686,21 +693,21 @@ prune dead chains
 
 //TEST:
 
-/*
+
 var logger = seriesOfPipes.create(
 ['        |                                                                     ',
  '        |                                                                     ',
  '        v                                                                     ',
- '       log - error -+->                                                       ',
- '        |           |                                                         ',
- '        +--- other -+                                                         ',
+ '       log -error- +->                                                        ',
+ '        |          |                                                          ',
+ '        +- -other- +                                                          ',
  '        |                                                                     ',
  '        |                                        <-log->                      ',
  '        |                                                                     ',
  '        #          -+                                                         ',
  '        |           |                                                         ',
  '        |           |                                                         ',
- '        +> winning -+                                                         ',
+ '        +>-winning--+                                                         ',
  '        |                                                                     ',
  '        |                                                                     ',
  '        |                                                                     ',
@@ -725,7 +732,7 @@ var logger = seriesOfPipes.create(
 	tab: 4
 });
 
-
+/*
 
 
 logger.emit("next", {hello:"there"});
@@ -747,7 +754,7 @@ logger.on("other", function(input, send){
 
 
 
-
+/*
 var logger = seriesOfPipes.create(
 	[' v   ',
 	 'log  ',
@@ -758,7 +765,7 @@ var logger = seriesOfPipes.create(
 			send("next", {all:"done"});
 		}
 	}
-)
+)*/
 /*
 var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
 console.log("["+" "+"]["+ sr(tolken.top.value)+"]["+" "+"]");
