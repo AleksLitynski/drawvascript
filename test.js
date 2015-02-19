@@ -89,7 +89,7 @@ var seriesOfPipes = (function(){
 			forEach(flow.all(elem), function(tolken_group){
 				forEach(tolken_group.target, function(tolken){
 					flatElems.push({target:tolken, direction:
-						opposite_direction[tolken_group.direction]});
+						tolken_group.direction});
 				})
 			})
 			flatElems = flow.filter(flatElems, " ", tolkens)
@@ -130,7 +130,7 @@ var seriesOfPipes = (function(){
 
 		options.text_dir = options.get_prev ||  directions.right;
 
-		options.imports = transpose(options.imports || [], imports);
+		options.imports = transpose({"__root__":{}}, transpose(options.imports || [], imports));
 		options.tolkens = transpose(tolkens, options.tolkens || []);
 		options.target = options.target || targets.invokable;
 		options.default_label = options.default_label || "next";
@@ -188,8 +188,8 @@ var seriesOfPipes = (function(){
 			// copy the grid into a list and set left/right/top/bottom to refs.
 			forEach(tolken_grid, function(row, x){
 				forEach(row, function(tolken, y){
-					tolken.top    = tolken_at(x, y+1);
-					tolken.bottom = tolken_at(x, y-1);
+					tolken.top    = tolken_at(x, y-1);
+					tolken.bottom = tolken_at(x, y+1);
 					tolken.left   = tolken_at(x-1, y);
 					tolken.right  = tolken_at(x+1, y);
 
@@ -346,19 +346,19 @@ var seriesOfPipes = (function(){
 		// [{value:node_name, edges[node_refs]}]
 		gen_graph : function(lexicon, opts){
 			var graph = [];
-			var node_to_lexeme = {};
 			forEach(lexicon, function(node){
 				var current_node = {value:node.value, edges:edges_from(node, opts)};
 				graph.push(current_node);
-				node_to_lexeme[node] = current_node;
 			})
 
-			//go over graph and "pull tight" all the edge targets.
+			/*
 			forEach(graph, function(node){
-				for(var i = 0; i < node.edges.length; i++){
-					node.edges[i] = node_to_lexeme[node.edges[i]];
-				}
+				console.log(node.value);
+				forEach(node.edges, function(edge){
+					console.log("	" + edge.value);
+				})
 			})
+			*/
 
 			//MUST REMOVE NODES THAT LEAD INTO THEMSELVES
 			return graph;
@@ -367,45 +367,52 @@ var seriesOfPipes = (function(){
 		gen_labeled_graph : function(graph, opts){
 			//turn graph into graph with labeled edges
 
-			//[node] -- label -- label --> [node] will convert to
-			//[node] -- label -- [node] and [node] -- label -- [node]
-
 			// a list of the functions the user defined
 			var node_names = {};
-			forEach(graph.imports, function(elem, item){
+			forEach(opts.imports, function(elem, item){
 				node_names[item] = true;
 			})
-
-			//the nodes in the graph that are imported-functions
+			var is_node = function(node){
+				return node_names[node.value] == true;
+			}
 			var nodes = graph.filter(function(node){
-				return node_names[node.name] == true;
+				return is_node(node);
 			})
-			var is_node = function(n){nodes.indexOf(n) >= 0;}
 
-
-			//[a] --- b +-------[c]
-			//		  +------- f -------- [e]
-			//		  +-------[d]     +-- [g]
-			function direct_edges(node, edge_values){
-				var dEdges = [];
-				forEach(node, function(edge){
-					if(is_node(edge)){
-						forEach(edge_values, function(eValue){
-							dEdges.push({value:eValue, target:edge})
+			function named_edges_from(node, edge_names){
+				var found_named_edges = [];
+				forEach(node.edges, function(edge_target){
+					if(is_node(edge_target)){
+						forEach(edge_names, function(edge_name){
+							found_named_edges.push({
+								value:edge_name,
+								target:edge_target})
 						})
 					} else {
-						forEach(direct_edges(edge, edge_values.concat(edge.value)), function(dE){
-							forEach(edge_values, function(eValue){
-								dEdges.push({value:eValue, target:dE})
+						forEach(named_edges_from(
+							edge_target,
+							edge_names.concat(edge_target.value)),
+						function(named_edge_target){
+							forEach(edge_names, function(edge_name){
+								dEfound_named_edges.push({
+									value:edge_name,
+									target:named_edge_target})
 							})
 						})
 					}
 				})
-				return dEdges;
+				return found_named_edges;
 			}
 
 			forEach(nodes, function(node){
-				node.edges = direct_edges(node, opts.default_edge_name);
+				node.edges = named_edges_from(node, [opts.default_label]);
+			})
+
+			forEach(nodes, function(node){
+				console.log(node.value)
+				forEach(node.edges, function(edge){
+					console.log("	" + edge.value + " => " + edge.target.value)
+				})
 			})
 
 			return nodes;
@@ -456,8 +463,8 @@ var seriesOfPipes = (function(){
 			})
 		}
 		var nodes_to_ittr = [graph_root];// {value:root.value, untouched_edges(root);
-		while(edges_to_ittr.length > 0){
-			var node = edges_to_ittr.pop();
+		while(nodes_to_ittr.length > 0){
+			var node = nodes_to_ittr.pop();
 			forEach(untouched_edges(node.edges), function(edge){
 				on_edge(node.value, edge.target.value, edge.value);
 				nodes_to_ittr.push(edge.target);
@@ -474,17 +481,25 @@ var seriesOfPipes = (function(){
 
 	function edges_from(node, opts){
 		var tolken_name = tolken_namer(opts.tolkens);
+	//	console.log(node.value + ": ")
 
-				console.log(node.value + ": ");
 		function all_nodes_reachable_from(tolken, direction, path){
+			direction = opposite_direction[direction]
+		//	var pth = "";
+		//	forEach(path, function(p){
+		//		pth += "["+p.value + "], "
+		//	})
+		//	console.log(pth + " leads [" + direction + "] into [" + tolken.value + "]" + " cross: " + tolken[opposite_direction[direction]].value)
 			var out = [];
 			var next_elems = opts.tolkens[tolken_name(tolken)][direction];
-			// either we're at the end, or we've looped back on ourself
 			if(next_elems == undefined || path.indexOf(tolken) >= 0) {return;}
 
 			forEach(next_elems(tolken, opts.tolkens),
 					function(next){
+				//		console.log("	" + next.target.value)
+
 						if(tolken_name(next.target) == "__node__"){
+				//			console.log(pth + " ==> " + next.target.value);
 							out.push(next.target);
 						} else {
 							out = out.concat(
@@ -494,6 +509,7 @@ var seriesOfPipes = (function(){
 									path.concat([tolken])
 								));
 						}
+					//	console.log()
 					});
 			return out;
 		}
@@ -501,16 +517,16 @@ var seriesOfPipes = (function(){
 		var out = [];
 		forEach(opts.tolkens[tolken_name(node)]["any"](node, opts.tolkens),
 					function(tolken_direction){
-						console.log("	Hits [" + tolken_direction.target.value + "] from the [" + tolken_direction.direction + "]");
+						//console.log("	Hits [" + tolken_direction.target.value + "] from the [" + tolken_direction.direction + "]");
 						out = out.concat(all_nodes_reachable_from(
 							tolken_direction.target,
 							tolken_direction.direction,
 							[]))
 				})
 
-		forEach(out, function(o){
+		/*forEach(out, function(o){
 			console.log("	" + o.value);
-		})
+		})*/
 
 		return out;
 	}
@@ -533,14 +549,14 @@ var seriesOfPipes = (function(){
 			"left" : function(elem, tolkens){return flow.filter(flow.xLeft(elem), " ", tolkens)},
 			"right" : function(elem, tolkens){return flow.filter(flow.xRight(elem), " ", tolkens)}
 		},
-		" ": { // Just like a plus, but it does pass into spaces
-			"top" : flow.xTop,
-			"bottom" : flow.xBottom,
-			"left" : flow.xLeft,
-			"right" : flow.xRight
+		" ": { // Just like a #, but, treated differently by '+' and '__node__'
+			"top" : flow.bottom,
+			"bottom" : flow.top,
+			"left" : flow.right,
+			"right" : flow.left
 		},
 		"#": {
-			"top" : flow.botton,
+			"top" : flow.bottom,
 			"bottom" : flow.top,
 			"left" : flow.right,
 			"right" : flow.left
@@ -693,6 +709,17 @@ prune dead chains
 
 //TEST:
 
+/*
+	log:
+		other -> root
+		winning -> root
+		next -> root
+		victory -> root
+	root:
+		next -> log
+	log:
+		next -> root
+*/
 
 var logger = seriesOfPipes.create(
 ['        |                                                                     ',
@@ -704,8 +731,8 @@ var logger = seriesOfPipes.create(
  '        |                                                                     ',
  '        |                                        <-log->                      ',
  '        |                                                                     ',
- '        #          -+                                                         ',
- '        |           |                                                         ',
+ '-       #          -+                                                         ',
+ '        |           +---   victory-->                                                         ',
  '        |           |                                                         ',
  '        +>-winning--+                                                         ',
  '        |                                                                     ',
@@ -734,7 +761,6 @@ var logger = seriesOfPipes.create(
 
 /*
 
-
 logger.emit("next", {hello:"there"});
 
 logger.on("", function(input, send){
@@ -754,7 +780,7 @@ logger.on("other", function(input, send){
 
 
 
-/*
+
 var logger = seriesOfPipes.create(
 	[' v   ',
 	 'log  ',
@@ -765,12 +791,17 @@ var logger = seriesOfPipes.create(
 			send("next", {all:"done"});
 		}
 	}
-)*/
-/*
-var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
-console.log("["+" "+"]["+ sr(tolken.top.value)+"]["+" "+"]");
-console.log("["+sr(tolken.left.value)+"]["+ sr(tolken.value)+"]["+sr(tolken.right.value)+"]");
-console.log("["+" "+"]["+ sr(tolken.bottom.value)+"]["+" "+"]");
-console.log();
+)
 
+/*
+var logger = seriesOfPipes.create(
+	['  |  ',
+	 '     '],
+	{
+		log: function(input, send){
+			console.log(input);
+			send("next", {all:"done"});
+		}
+	}
+)
 */
