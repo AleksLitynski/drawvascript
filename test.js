@@ -346,11 +346,25 @@ var seriesOfPipes = (function(){
 		// [{value:node_name, edges[node_refs]}]
 		gen_graph : function(lexicon, opts){
 			var graph = [];
-			forEach(lexicon, function(node){
-				var current_node = {value:node.value, edges:edges_from(node, opts)};
+			var tolken_to_node = {};
+			var current_id = 1;
+			forEach(lexicon, function(lexeme){
+				var current_node = {value:lexeme.value, edges:edges_from(lexeme, opts)};
 				graph.push(current_node);
+
+				current_node.id = lexeme.id = current_id;
+				tolken_to_node[lexeme.id] = current_node;
+				current_id++;
+
 			})
 
+			forEach(graph, function(node){
+				for(var i = 0; i < node.edges.length; i++){
+					if(node.edges[i] != undefined){
+						node.edges[i] = tolken_to_node[node.edges[i].id] || node.edges[i];
+					}
+				}
+			})
 			/*
 			forEach(graph, function(node){
 				console.log(node.value);
@@ -380,9 +394,15 @@ var seriesOfPipes = (function(){
 			})
 
 			function named_edges_from(node, edge_names){
+
+				var idt = "";
+				forEach(edge_names, function(){idt+= "	"});
+
+				console.log(idt + node.value)
 				var found_named_edges = [];
 				forEach(node.edges, function(edge_target){
 					if(is_node(edge_target)){
+						console.log(idt + "        [" + edge_target.value + "]")
 						forEach(edge_names, function(edge_name){
 							found_named_edges.push({
 								value:edge_name,
@@ -393,8 +413,9 @@ var seriesOfPipes = (function(){
 							edge_target,
 							edge_names.concat(edge_target.value)),
 						function(named_edge_target){
+
 							forEach(edge_names, function(edge_name){
-								dEfound_named_edges.push({
+								found_named_edges.push({
 									value:edge_name,
 									target:named_edge_target})
 							})
@@ -407,13 +428,15 @@ var seriesOfPipes = (function(){
 			forEach(nodes, function(node){
 				node.edges = named_edges_from(node, [opts.default_label]);
 			})
-
+			/*
 			forEach(nodes, function(node){
 				console.log(node.value)
 				forEach(node.edges, function(edge){
 					console.log("	" + edge.value + " => " + edge.target.value)
 				})
 			})
+			*/
+
 
 			return nodes;
 		},
