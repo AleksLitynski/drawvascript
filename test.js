@@ -1,6 +1,6 @@
 // This project is called "drawvascript" (pun on javascript, draw-va, java, get it, damn it)
 
-//BODY:
+//BODY: 1234
 
 var seriesOfPipes = (function(){
 
@@ -381,6 +381,8 @@ var seriesOfPipes = (function(){
 		gen_labeled_graph : function(graph, opts){
 			//turn graph into graph with labeled edges
 
+			var unlabeled_to_labeled = {};
+
 			// a list of the functions the user defined
 			var node_names = {};
 			forEach(opts.imports, function(elem, item){
@@ -392,51 +394,75 @@ var seriesOfPipes = (function(){
 			var nodes = graph.filter(function(node){
 				return is_node(node);
 			})
+			//console.log(node_names)
 
-			function named_edges_from(node, edge_names){
+			function named_edges_from(node, edge_names, backtrack){
+				backtrack.push(node.id);
 
-				var idt = "";
-				forEach(edge_names, function(){idt+= "	"});
-
-				console.log(idt + node.value)
 				var found_named_edges = [];
-				forEach(node.edges, function(edge_target){
+				forEach((node.edges || [])
+					.filter(function(e){
+						if(e){
+							var index = backtrack.indexOf(e.id)
+							return index == -1
+						}
+					}),
+				function(edge_target){
 					if(is_node(edge_target)){
-						console.log(idt + "        [" + edge_target.value + "]")
-						forEach(edge_names, function(edge_name){
+						var names = edge_names;
+						if(edge_names.length == 0){
+							names.push(opts.default_label)
+						}
+						forEach(names, function(edge_name){
 							found_named_edges.push({
-								value:edge_name,
-								target:edge_target})
-						})
-					} else {
-						forEach(named_edges_from(
-							edge_target,
-							edge_names.concat(edge_target.value)),
-						function(named_edge_target){
-
-							forEach(edge_names, function(edge_name){
-								found_named_edges.push({
-									value:edge_name,
-									target:named_edge_target})
+								value:edge_name
+								,target:edge_target
+							//	,en:edge_names
+							//	,bt:backtrack
 							})
 						})
+					} else {
+						found_named_edges = found_named_edges
+						.concat(named_edges_from(
+							edge_target,
+							edge_names.concat(edge_target.value),
+							backtrack))
 					}
 				})
 				return found_named_edges;
 			}
 
 			forEach(nodes, function(node){
-				node.edges = named_edges_from(node, [opts.default_label]);
+				// There is something WRONG with how __root__ is numbered.
+				// I think it was 0 in some other life, and now things only
+				// match up if I keep calling it zero
+				if(node.value == "__root__"){node.id = 0;}
+				node.edges = named_edges_from(node, [], []);
 			})
+
+			// remove duplicates
+			for(var i = 0; i < nodes.length; i++){
+				var edge_set = {}
+				for(var j = 0; j < nodes[i].edges.length; j++){
+					edge_set[						//unique based on
+						nodes[i].edges[j].target.id //target id
+					  +	nodes[i].edges[j].value 	//and edge's name
+					] = nodes[i].edges[j];
+				}
+				nodes[i].edges = [];
+				for(var n in edge_set){
+					nodes[i].edges.push(edge_set[n]);
+				}
+			}
+
 			/*
 			forEach(nodes, function(node){
-				console.log(node.value)
+				console.log(node.value + " (" + node.id + ")")
 				forEach(node.edges, function(edge){
-					console.log("	" + edge.value + " => " + edge.target.value)
+					console.log("	over [" + edge.value + "] to ["+edge.target.value  + "] (" + edge.target.id + ")")
 				})
 			})
 			*/
-
 
 			return nodes;
 		},
@@ -746,16 +772,16 @@ prune dead chains
 
 var logger = seriesOfPipes.create(
 ['        |                                                                     ',
- '        |                                                                     ',
- '        v                                                                     ',
- '       log -error- +->                                                        ',
+ '        +  -woob  -+                                                          ',
+ '        v          ^                                                          ',
+ '       log -error-<+->                                                        ',
  '        |          |                                                          ',
  '        +- -other- +                                                          ',
  '        |                                                                     ',
  '        |                                        <-log->                      ',
  '        |                                                                     ',
  '-       #          -+                                                         ',
- '        |           +---   victory-->                                                         ',
+ '        |           +---   Victory-->                                         ',
  '        |           |                                                         ',
  '        +>-winning--+                                                         ',
  '        |                                                                     ',
