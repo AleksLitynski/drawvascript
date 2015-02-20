@@ -473,21 +473,20 @@ var seriesOfPipes = (function(){
 				//[{value:node_name, edges:[{value:edge_name,target:node_ref}]}]
 
 				var graph_root = get_root(labeled_graph);
+				console.log(graph_root);
 
 				var events = {};
 				function get_event(name){
 					events[name] = events[name] || event();
 				}
+				// walk outwards from the root of the graph.
+				// when we touch nodes, make events, flow the events into the
+				// nodes the node touches, etc.
 				edge_ittr(graph_root, labeled_graph, function(from, to, via){
 					get_event(from).on(via, function(data){
 						to(data, get_event(to).emit);
 					});
 				});
-
-				/*
-				  a -> b
-				  +- > c
-				*/
 
 				return get_root(events);
 
@@ -505,7 +504,7 @@ var seriesOfPipes = (function(){
 			target[node.edge.value] = true;
 		}
 		function untouched_edges(node){
-			return node.edges.filter(function(edge){
+			return (node.edges || []).filter(function(edge){
 				return touched_edges[node.value] &&
 				touched_edges[node.value][edge.target.value] &&
 				touched_edges[node.value][edge.target.value][edge.value]
