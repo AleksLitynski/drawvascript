@@ -1,4 +1,4 @@
-
+/*
 
 
     1---+         +--4
@@ -42,3 +42,52 @@ event_node = {
     inbound_event: event(),
     outbound_events: [event()]
 }
+*/
+
+
+
+
+event = function(){
+    var no_data = {};
+    var data = no_data;
+    var listeners = [];
+    function fireListener(listener, current_data){
+        setTimeout(function(){
+            listener(current_data);
+        }, 0)
+    }
+    var self = {
+        on : function(new_listener){
+            listeners[listeners.length] = new_listener;
+            if(data != no_data){
+                fireListener(new_listener, data);
+            }
+            return self;
+        },
+        emit : function(new_data){
+            self.with(new_data).fire();
+            return self;
+        },
+        with : function(new_data){
+            data = new_data;
+            return self;
+        },
+		fire : function(){
+            if(data != no_data){
+				for(var index in listeners){
+                    fireListener(listeners[index], data);
+				}
+            }
+            return self;
+        }
+    }
+    return self;
+}
+
+var evt = event();
+evt.emit({woob:"wab"})
+evt.on(function(data){console.log("1", data);})
+evt.on(function(data){console.log("2", data);})
+evt.emit("hey one");
+evt.emit({woob:"choob"})
+evt.with("hey").fire();

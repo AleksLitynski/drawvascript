@@ -374,7 +374,6 @@ var seriesOfPipes = (function(){
 			})
 			*/
 
-			//MUST REMOVE NODES THAT LEAD INTO THEMSELVES
 			return graph;
 		},
 		//[{value:node_name, edges:[{value:edge_name,target:node_ref}]}]
@@ -471,31 +470,27 @@ var seriesOfPipes = (function(){
 			//returns "event" object. Has on and emit functions.
 			invokable : function(labeled_graph, opts){
 				var event_graph = [];
-				var graph_root = {};
-
-				function get_event_node(node){
-					return event_graph[node.id]
-						= event_graph[node.id]
-						= event_graph[node.id]
-						|| event_node(node.value);
-				}
-				function get_outbound_event(source, via){
-					var event_node = get_event_node(source);
-					return new_event
-						= event_node.out[via]
-						= event_node.out[via]
-						|| event();
-				}
 
 				// traverses only nodes reachable from a given node
 				from_node(get_root(labeled_graph), function(from, to, via){
-					var ob_event = get_outbound_event(from, via); //event
-					ob_event.on(function(data){
-						var event_node = get_event_node(from) //{in:event, data:{}, out:[event]}
-						event_node.data = data;
-						event_node.in.emit(event_node);
+					console.log(from.value + " over [" + via + "] to " + to.value);
+					var node_id = from.id;
+					event_graph[from.id] = event_graph[node_id] || event_node(from.value); //{in:event, data:{}, out:[event]}
+					event_graph[from.id].out[via] = event_graph[node_id].out[via] || event();
+
+					event_graph[from.id].out[via].on(function(data){
+						event_graph[from.id].data = data;
+						event_graph[from.id].in.emit(event_graph[from.id]);
 					})
 				});
+
+				for(var n in event_graph){
+
+					console.log(event_graph[n].name)
+					for(var j in event_graph[n].out){
+						console.log("	" + j )
+					}
+				}
 
 				return get_root(event_graph, "name");
 
@@ -669,6 +664,7 @@ var seriesOfPipes = (function(){
 	            return self;
 	        },
 			fire : function(){
+				console.log(listeners.length);
 	            if(data != no_data){
 					forEach(listeners, function(listener){
 						setTimeout(function(){listener(data)}, 0);
@@ -848,7 +844,7 @@ var logger = seriesOfPipes.create(
 		log: function(self){
 			// note that the function will be attached to the event_node,
 			// so this and self are interchangable
-			console.log(this.data);
+			console.log(self.data);
 			self.out.next.emit({all:"done"});
 		},
 		log2: function(self){
@@ -863,11 +859,6 @@ logger.out.next.with("hey grrl").fire();
 logger.in.on(function(self){
 	console.log(self.data);
 })
-
-for(var ed in logger.out){
-	console.log(ed);
-}
-
 
 
 /*
