@@ -486,10 +486,12 @@ var seriesOfPipes = (function(){
 					var target_imported_func = opts.imports[to.value] || function(){};
 					get_event(from, via).on(function(data){
 						console.log(opts.imports, to);
+
 						target_imported_func(data, get_event_group(to));
 					});
 				});
-
+				// we return a backwards event. Usually, we make automate the "on" and let the user define the "emit".
+				// For __root__, we define emit, and let the user define "on"
 				return get_event_group(get_root(labeled_graph));
 
 			},
