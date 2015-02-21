@@ -470,29 +470,34 @@ var seriesOfPipes = (function(){
 		gen_target : {
 			//returns "event" object. Has on and emit functions.
 			invokable : function(labeled_graph, opts){
-				var event_groups = {};
-				function get_event_group(node){
-					var edge_group = event_groups[node.id] = event_groups[node.id] || {};
-					return edge_group;
+				var event_graph = [];
+				var graph_root = {};
+
+				function get_event_node(node){
+					return event_graph[node.id]
+						= event_graph[node.id]
+						= event_graph[node.id]
+						|| event_node(node.value);
 				}
-				function get_event(source, via){
-					var edge_group = get_event_group(source);
-					var new_event = edge_group[via] = edge_group[via] || event();
-					return new_event;
+				function get_outbound_event(source, via){
+					var event_node = get_event_node(source);
+					return new_event
+						= event_node.out[via]
+						= event_node.out[via]
+						|| event();
 				}
 
 				// traverses only nodes reachable from a given node
 				from_node(get_root(labeled_graph), function(from, to, via){
-					var target_imported_func = opts.imports[to.value] || function(){};
-					get_event(from, via).on(function(data){
-						console.log(opts.imports, to);
-
-						target_imported_func(data, get_event_group(to));
-					});
+					var ob_event = get_outbound_event(from, via); //event
+					ob_event.on(function(data){
+						var event_node = get_event_node(from) //{in:event, data:{}, out:[event]}
+						event_node.data = data;
+						event_node.in.emit(event_node);
+					})
 				});
-				// we return a backwards event. Usually, we make automate the "on" and let the user define the "emit".
-				// For __root__, we define emit, and let the user define "on"
-				return get_event_group(get_root(labeled_graph));
+
+				return get_root(event_graph, "name");
 
 			},
 			evalable : function(){console.log("not doing it right now, sorry.")},
@@ -517,9 +522,10 @@ var seriesOfPipes = (function(){
 
 	}
 
-	function get_root(elems){
+	function get_root(elems, prop_name){
+		prop_name = prop_name || "value";
 		return elems.filter(function(elem){
-			return elem.value =="__root__";
+			return elem[prop_name] =="__root__";
 		})[0];
 	}
 
@@ -665,13 +671,17 @@ var seriesOfPipes = (function(){
 			fire : function(){
 	            if(data != no_data){
 					forEach(listeners, function(listener){
-						listener(data);
+						setTimeout(function(){listener(data)}, 0);
 					});
 	            }
 	            return self;
 	        }
 	    }
 	    return self;
+	}
+
+	function event_node(name){
+		return {in:event(), data:{}, name:name, out:[]}
 	}
 
 
@@ -835,19 +845,30 @@ var logger = seriesOfPipes.create(
 	 'log     ',
 	 ' |woo   '],
 	{
-		log: function(input, flow_to){
-			console.log(input);
-			flow_to.next.emit({all:"done"});
+		log: function(self){
+			// note that the function will be attached to the event_node,
+			// so this and self are interchangable
+			console.log(this.data);
+			self.out.next.emit({all:"done"});
 		},
-		log2: function(input, flow_to){
-			console.log(input + " 2");
-			console.log(flow_to);
-			flow_to.next.emit({all:"done"});
+		log2: function(self){
+			console.log(self.data + " 2");
+			console.log(self);
+			self.out.next.emit({all:"done2"});
 		}
 	}
 )
 
-logger.next.with("hey grrl").fire();
+logger.out.next.with("hey grrl").fire();
+logger.in.on(function(self){
+	console.log(self.data);
+})
+
+for(var ed in logger.out){
+	console.log(ed);
+}
+
+
 
 /*
 var logger = seriesOfPipes.create(
