@@ -473,24 +473,29 @@ var seriesOfPipes = (function(){
 
 				// traverses only nodes reachable from a given node
 				from_node(get_root(labeled_graph), function(from, to, via){
-					console.log(from.value + " over [" + via + "] to " + to.value);
-					var node_id = from.id;
-					event_graph[from.id] = event_graph[node_id] || event_node(from.value); //{in:event, data:{}, out:[event]}
-					event_graph[from.id].out[via] = event_graph[node_id].out[via] || event();
+					//console.log(from.value + " ~~>> [" + via + "] ~~>> " + to.value);
+					event_graph[from.id] = event_graph[from.id] || event_node(from.value); //{in:event, data:{}, out:[event]}
+					event_graph[from.id].out[via] = event_graph[from.id].out[via] || event();
 
 					event_graph[from.id].out[via].on(function(data){
-						event_graph[from.id].data = data;
-						event_graph[from.id].in.emit(event_graph[from.id]);
+						event_graph[to.id] = event_graph[to.id] || event_node(to.value);
+						event_graph[to.id].data = data;
+						event_graph[to.id].in.emit(event_graph[to.id]);
+						var to_func = opts.imports[to.value];
+						if(to_func instanceof Function){
+							event_graph[to.id].in.on(to_func);
+						}
 					})
 				});
-
+/*
 				for(var n in event_graph){
 
 					console.log(event_graph[n].name)
 					for(var j in event_graph[n].out){
-						console.log("	" + j )
+						console.log(event_graph[n].out[j] )
 					}
 				}
+				*/
 
 				return get_root(event_graph, "name");
 
@@ -646,17 +651,21 @@ var seriesOfPipes = (function(){
 	    var no_data = {};
 	    var data = no_data;
 	    var listeners = [];
+	    function fireListener(listener, current_data){
+	        setTimeout(function(){
+	            listener(current_data);
+	        }, 0)
+	    }
 	    var self = {
 	        on : function(new_listener){
-	            listeners.push(new_listener);
+	            listeners[listeners.length] = new_listener;
 	            if(data != no_data){
-					new_listener(data);
+	                fireListener(new_listener, data);
 	            }
 	            return self;
 	        },
 	        emit : function(new_data){
-	            self.with(new_data);
-	            self.fire();
+	            self.with(new_data).fire();
 	            return self;
 	        },
 	        with : function(new_data){
@@ -664,11 +673,10 @@ var seriesOfPipes = (function(){
 	            return self;
 	        },
 			fire : function(){
-				console.log(listeners.length);
 	            if(data != no_data){
-					forEach(listeners, function(listener){
-						setTimeout(function(){listener(data)}, 0);
-					});
+					for(var index in listeners){
+	                    fireListener(listeners[index], data);
+					}
 	            }
 	            return self;
 	        }
@@ -836,40 +844,29 @@ logger.on("other", function(input, send){
 
 
 var logger = seriesOfPipes.create(
-	[' v      ',
-	 ' +-log2-',
-	 'log     ',
-	 ' |woo   '],
+	[' |      ',
+	 ' v      ',
+	 ' lg     ',
+	 ' +>dbl->',
+	 ' v      '],
 	{
-		log: function(self){
-			// note that the function will be attached to the event_node,
-			// so this and self are interchangable
+		lg: function(self){
 			console.log(self.data);
-			self.out.next.emit({all:"done"});
+			self.out.next.emit(self.data);
 		},
-		log2: function(self){
-			console.log(self.data + " 2");
-			console.log(self);
-			self.out.next.emit({all:"done2"});
+		dbl: function(self){
+			self.out.next.emit(self.data*2);
 		}
 	}
 )
 
-logger.out.next.with("hey grrl").fire();
+logger.out.next.emit(1);
 logger.in.on(function(self){
 	console.log(self.data);
 })
 
 
-/*
-var logger = seriesOfPipes.create(
-	['  |  ',
-	 '     '],
-	{
-		log: function(input, send){
-			console.log(input);
-			send("next", {all:"done"});
-		}
-	}
-)
-*/
+//should see:
+// lg -> 1
+// logger -> 1
+// logger -> 2
