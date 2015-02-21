@@ -470,56 +470,49 @@ var seriesOfPipes = (function(){
 		gen_target : {
 			//returns "event" object. Has on and emit functions.
 			invokable : function(labeled_graph, opts){
-				//[{value:node_name, edges:[{value:edge_name,target:node_ref}]}]
-
-				var graph_root = get_root(labeled_graph);
-				console.log(graph_root);
-
-				var events = {};
-				function get_event(name){
-					events[name] = events[name] || event();
+				var event_groups = {};
+				function get_event_group(node){
+					var edge_group = event_groups[node.id] = event_groups[node.id] || {};
+					return edge_group;
 				}
-				// walk outwards from the root of the graph.
-				// when we touch nodes, make events, flow the events into the
-				// nodes the node touches, etc.
-				edge_ittr(graph_root, labeled_graph, function(from, to, via){
-					get_event(from).on(via, function(data){
-						to(data, get_event(to).emit);
+				function get_event(source, via){
+					var edge_group = get_event_group(source);
+					var new_event = edge_group[via] = edge_group[via] || event();
+					return new_event;
+				}
+
+				// traverses only nodes reachable from a given node
+				from_node(get_root(labeled_graph), function(from, to, via){
+					var target_imported_func = opts.imports[to.value] || function(){};
+					get_event(from, via).on(function(data){
+						console.log(opts.imports, to);
+						target_imported_func(data, get_event_group(to));
 					});
 				});
 
-
-				return get_root(events);
+				return get_event_group(get_root(labeled_graph));
 
 			},
 			evalable : function(){console.log("not doing it right now, sorry.")},
 		}
 	};
 
-	function edge_ittr(graph_root, all_nodes, on_edge){
+	function from_node(graph_root, on_edge){
 
-		var touched_edges = {}; //source_name : {{edge_name : {target_names}}}
-		function touch_edge(node){
-			var source = touched_edges[node.value] = touched_edges[node.value] || {};
-			var target = source[node.edge.target.value] = source[node.edge.target.value] || {};
-			target[node.edge.value] = true;
-		}
-		function untouched_edges(node){
-			return (node.edges || []).filter(function(edge){
-				return touched_edges[node.value] &&
-				touched_edges[node.value][edge.target.value] &&
-				touched_edges[node.value][edge.target.value][edge.value]
-			})
-		}
-		var nodes_to_ittr = [graph_root];// {value:root.value, untouched_edges(root);
+		var touched_nodes = {};
+		var nodes_to_ittr = [graph_root];
 		while(nodes_to_ittr.length > 0){
-			var node = nodes_to_ittr.pop();
-			forEach(untouched_edges(node.edges), function(edge){
-				on_edge(node.value, edge.target.value, edge.value);
-				nodes_to_ittr.push(edge.target);
-			})
+			var current_node = nodes_to_ittr.pop();
+			if(touched_nodes[current_node.id] != true){
+				touched_nodes[current_node.id] = true;
 
+				forEach(current_node.edges, function(edge){
+					on_edge(current_node, edge.target, edge.value);
+					nodes_to_ittr.push(edge.target);
+				})
+			}
 		}
+
 	}
 
 	function get_root(elems){
@@ -645,21 +638,21 @@ var seriesOfPipes = (function(){
 		});
 		return out;
 	};
-	
+
 	event = function(){
 	    var no_data = {};
-	    var data = this.no_data;
-	    var listener function(){};
+	    var data = no_data;
+	    var listeners = [];
 	    var self = {
 	        on : function(new_listener){
-	            listener = new_listener;
+	            listeners.push(new_listener);
 	            if(data != no_data){
-	                listener(data);
+					new_listener(data);
 	            }
 	            return self;
 	        },
 	        emit : function(new_data){
-	            self.load(new_data);
+	            self.with(new_data);
 	            self.fire();
 	            return self;
 	        },
@@ -667,9 +660,11 @@ var seriesOfPipes = (function(){
 	            data = new_data;
 	            return self;
 	        },
-	        fire : function(){
+			fire : function(){
 	            if(data != no_data){
-	                (listener || function(){})(data);
+					forEach(listeners, function(listener){
+						listener(data);
+					});
 	            }
 	            return self;
 	        }
@@ -770,7 +765,7 @@ prune dead chains
 	log:
 		next -> root
 */
-
+/*
 var logger = seriesOfPipes.create(
 ['        |                                                                     ',
  '        +  -woob  -+                                                          ',
@@ -799,17 +794,18 @@ var logger = seriesOfPipes.create(
  '        v                                                                     '],
 {
 	//equivelent of calling "on",
-	log : function(input, send){
+	log : function(input, flow_to){
 		console.log(input);
 		//equivalent of calling emit
-		send("next", {all:"done"});
+		console.log(flow_to);
+		flow_to.next.emit({all:"done"});
 	}
 },
 {
 	tab: 4
 });
 
-/*
+
 
 logger.emit("next", {hello:"there"});
 
@@ -832,16 +828,24 @@ logger.on("other", function(input, send){
 
 
 var logger = seriesOfPipes.create(
-	[' v   ',
-	 'log  ',
-	 ' |woo'],
+	[' v      ',
+	 ' +-log2-',
+	 'log     ',
+	 ' |woo   '],
 	{
-		log: function(input, send){
+		log: function(input, flow_to){
 			console.log(input);
-			send("next", {all:"done"});
+			flow_to.next.emit({all:"done"});
+		},
+		log2: function(input, flow_to){
+			console.log(input + " 2");
+			console.log(flow_to);
+			flow_to.next.emit({all:"done"});
 		}
 	}
 )
+
+logger.next.with("hey grrl").fire();
 
 /*
 var logger = seriesOfPipes.create(
