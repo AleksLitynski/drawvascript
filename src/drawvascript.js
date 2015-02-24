@@ -135,6 +135,14 @@ var drawvascript = (function(){
 		options.target = options.target || "invokable";
 		options.default_label = options.default_label || "next";
 
+		options.debug = transpose(options.debug,{
+			tolkens : false,
+			lexicon : false,
+			graph : false,
+			labeled_graph : false,
+			target : false
+		})
+
 		return options;
 	}
 
@@ -193,14 +201,14 @@ var drawvascript = (function(){
 					tolken.left   = tolken_at(x-1, y);
 					tolken.right  = tolken_at(x+1, y);
 
-					/*
-					console.log(x, y);
-					var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
-					console.log("["+" "+				  "]["+ sr(tolken.top.value)+   "]["+" "+                   "]");
-					console.log("["+sr(tolken.left.value)+"]["+ sr(tolken.value)+       "]["+sr(tolken.right.value)+"]");
-					console.log("["+" "+                  "]["+ sr(tolken.bottom.value)+"]["+" "+                   "]");
-					console.log();
-					*/
+					if(opts.debug.tolkens){
+						console.log(x, y);
+						var sr = function(e){if(e == "__root__"){return "R"} else {return e;}}
+						console.log("["+" "+				  "]["+ sr(tolken.top.value)+   "]["+" "+                   "]");
+						console.log("["+sr(tolken.left.value)+"]["+ sr(tolken.value)+       "]["+sr(tolken.right.value)+"]");
+						console.log("["+" "+                  "]["+ sr(tolken.bottom.value)+"]["+" "+                   "]");
+						console.log();
+					}
 
 
 					tolkens.push(tolken);
@@ -327,17 +335,17 @@ var drawvascript = (function(){
 				node.bottom = node.bottom.filter(uniques);
 			})
 
-			/*
-			forEach(nodes, function(node){
-				function aaa(e){var o = "";forEach(e, function(ee){o += ee.value + ", ";});return o;};
-				console.log(node.value);
-				console.log("	left: ", aaa(node.left))
-				console.log("	right: ", aaa(node.right))
-				console.log("	top: ", aaa(node.top))
-				console.log("	bottom: ", aaa(node.bottom))
-				console.log("")
-			})
-			*/
+			if(opts.debug.lexicon){
+				forEach(nodes, function(node){
+					function aaa(e){var o = "";forEach(e, function(ee){o += ee.value + ", ";});return o;};
+					console.log(node.value);
+					console.log("	left: ", aaa(node.left))
+					console.log("	right: ", aaa(node.right))
+					console.log("	top: ", aaa(node.top))
+					console.log("	bottom: ", aaa(node.bottom))
+					console.log("")
+				})
+			}
 
 			return nodes;
 		},
@@ -363,14 +371,15 @@ var drawvascript = (function(){
 					}
 				}
 			})
-			/*
-			forEach(graph, function(node){
-				console.log(node.value);
-				forEach(node.edges, function(edge){
-					console.log("	" + edge.value);
+
+			if(opts.debug.graph){
+				forEach(graph, function(node){
+					console.log(node.value);
+					forEach(node.edges, function(edge){
+						console.log("	" + edge.value);
+					})
 				})
-			})
-			*/
+			}
 
 			return graph;
 		},
@@ -391,7 +400,6 @@ var drawvascript = (function(){
 			var nodes = graph.filter(function(node){
 				return is_node(node);
 			})
-			//console.log(node_names)
 
 			function named_edges_from(node, edge_names, backtrack){
 				backtrack.push(node.id);
@@ -452,14 +460,14 @@ var drawvascript = (function(){
 				}
 			}
 
-			/*
-			forEach(nodes, function(node){
-				console.log(node.value + " (" + node.id + ")")
-				forEach(node.edges, function(edge){
-					console.log("	over [" + edge.value + "] to ["+edge.target.value  + "] (" + edge.target.id + ")")
+			if(opts.debug.labeled_graph){
+				forEach(nodes, function(node){
+					console.log(node.value + " (" + node.id + ")")
+					forEach(node.edges, function(edge){
+						console.log("	over [" + edge.value + "] to ["+edge.target.value  + "] (" + edge.target.id + ")")
+					})
 				})
-			})
-			*/
+			}
 
 			return nodes;
 		},
@@ -489,14 +497,14 @@ var drawvascript = (function(){
 					event_graph[from.id].flow[via].on(event_graph[to.id].emit);
 				});
 
-				/*
-				for(var n in event_graph){
-					console.log(event_graph[n].name)
-					for(var j in event_graph[n].out){
-						console.log(event_graph[n].out[j] )
+				if(opts.debug.target){
+					for(var n in event_graph){
+						console.log(event_graph[n].name)
+						for(var j in event_graph[n].out){
+							console.log(event_graph[n].out[j] )
+						}
 					}
 				}
-				*/
 
 				return get_root(event_graph, "name");
 
@@ -644,10 +652,10 @@ var drawvascript = (function(){
 				self.in.on(transform);
 			},
 			emit : function(data){
-				self.in.emit({data:data, state:self.state, flow:self.flow})
+				self.in.emit({data:data, state:self.state, flow:self.flow, name:self.name})
 			},
 			with : function(data){
-				return self.in.with({data:data, state:self.state, flow:self.flow})
+				return self.in.with({data:data, state:self.state, flow:self.flow, name:self.name})
 			}
 		};
 		return self;
