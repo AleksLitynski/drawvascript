@@ -1,16 +1,16 @@
 
-Drawvascript compiles a 2D ascii-flow-chart into 
+### Drawvascript 
+compiles a 2D ascii-flow-chart into 
 a chain of javascript callbacks.
 
 
 
-Check out tests/simple.js or tests/complex.js for examples.
+Check out [tests/simple.js](https://github.com/tavoe/drawvascript/blob/master/tests/simple.js) or [tests/complex.js](https://github.com/tavoe/drawvascript/blob/master/tests/complex.js) for examples.
 
 
 
-I found http://asciiflow.com/ modestly useful for drawing flow-charts.
 
-Allow me to paste in an exerpt from the source-code with no explanation:
+Allow me now to paste in an exerpt from the source-code with no explanation:
 
 ```
 
@@ -46,3 +46,6 @@ Allow me to paste in an exerpt from the source-code with no explanation:
 		"^": {"bottom" : flow.top},
 
 ```
+
+
+I found http://asciiflow.com/ modestly useful for drawing flow-charts.
