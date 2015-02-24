@@ -1,0 +1,55 @@
+
+<!doctype html>
+<html>
+    <head>
+        <meta charset='utf-8'>
+        <title>Marquee</title>
+        <style>
+
+        </style>
+        <script>
+
+
+
+            window.onload = function(){
+                run_marquee(document.querySelector(".marquee-group"));
+            }
+
+        </script>
+    </head>
+    <body>
+
+        <span class="marquee-group">
+
+            <!--marquee tag is only for style-->
+            <span "marquee">
+                <!-- The header will scroll across and rest. -->
+                <span class="marquee-header">Birthdays</span>
+                <!-- Each item will scroll past in order.
+                    Its fine to add new items programatically. -->
+                <span class="marquee-item">Aleks 1</span>
+                <span class="marquee-item">Aleks 2</span>
+                <span class="marquee-item">Aleks 3</span>
+                <span class="marquee-item">Aleks 4</span>
+            </span>
+
+            <span "marquee">
+                <span class="marquee-header">Deathdays</span>
+                <span class="marquee-item">a 1</span>
+                <span class="marquee-item">a 2</span>
+                <span class="marquee-item">a 3</span>
+                <span class="marquee-item">a 4</span>
+            </span>
+
+            <span "marquee">
+                <span class="marquee-header">ALEKS!</span>
+                <span class="marquee-item">What a hero!</span>
+                <span class="marquee-item">what a cool guy!</span>
+                <span class="marquee-item">so svelt</span>
+                <span class="marquee-item">once again, svelt</span>
+            </span>
+
+        </span>
+        
+    </body>
+</html>

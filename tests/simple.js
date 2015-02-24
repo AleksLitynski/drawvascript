@@ -8,20 +8,21 @@ var logger = drawvascript.create(
 	 ' +>dbl->',
 	 ' v      '],
 	{
-		lg: function(self){
-			console.log(self.data);
-			self.out.next.emit(self.data);
+		lg: function(inp){
+			console.log(inp.data);
+			inp.flow.next.emit(inp.data);
 		},
-		dbl: function(self){
-			self.out.next.emit(self.data*2);
+		dbl: function(inp){
+			console.log(inp.data);
+			inp.flow.next.emit(inp.data*2);
 		}
 	}
 )
 
-logger.out.next.emit(1);
+logger.flow.next.emit(1);
 
-logger.in.on(function(self){
-	console.log(self.data);
+logger.in.on(function(inp){
+	console.log(inp.data);
 })
 
 
