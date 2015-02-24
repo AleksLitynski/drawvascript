@@ -10,9 +10,9 @@ var thingthing = drawvascript.create([
 '             +-     twice- action  ',
 '                <done-+            ',
 '                                   ',
-'-  -->   quack+---->sayQ           ',
-'              +---> sayQ           ',
-'              +--- >sayQ           ',
+'-  -->   quack+---->say_quack      ',
+'              +---> sayQ    |      ',
+'              +--- >sayQ   <+      ',
 '                                   ',
 '                                   '],
 {
@@ -26,6 +26,10 @@ var thingthing = drawvascript.create([
     },
     sayQ : function(){
         console.log("QUACK");
+    },
+    say_quack : function(s){
+        console.log("Quack.");
+        setTimeout(s.flow.next.emit, 1000);
     },
     twice : function(self){
         self.state.count = self.state.count || 0;
