@@ -1,4 +1,4 @@
-
+var drawvascript = require("../src/drawvascript.js");
 
 var interleaver = drawvascript.create([
 '                                   ',
@@ -6,9 +6,10 @@ var interleaver = drawvascript.create([
 '    v           ^              v   ',
 '              delay                ',
 '                ^                  ',
-'>right-      repeater        -left<',
-'                +done-             ',
-'                                   '],
+'>right-      repeater        -left<', //BECAUSE REPEATER ADDS NEXT
+'                 v                 ', //WHEN IT PASSES TO DELAY,
+'               done                ', //NEXT IS MUX'D INTO THE
+'                 v                 '],//DONE->__ROOT__ path too~~
 {
 	//equivelent of calling "on",
     delay : function(s){
@@ -28,10 +29,14 @@ var interleaver = drawvascript.create([
         s.data.chn.push("log");
         console.log(s.data.msg);
         s.flow[s.data.dir].emit(s.data);
+    },
+    lg : function(s){
+        console.log(s.data.msg);
     }
 },{
     debug:{
-        labeled_graph:false
+        graph : false,
+        labeled_graph:true
 
     }
 });
@@ -40,7 +45,7 @@ var interleaver = drawvascript.create([
 // this event is also raised when registered,
 // because .right already has a value (the inital value)
 interleaver.on(function(s){
-    console.log("in hell", s.data.chn);
+    console.log("in grumble", s.data.chn);
 })
 
 

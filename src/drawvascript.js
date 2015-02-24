@@ -414,18 +414,21 @@ var drawvascript = (function(){
 					}),
 				function(edge_target){
 					if(is_node(edge_target)){
-						var names = edge_names;
 						if(edge_names.length == 0){
-							names.push(opts.default_label)
+							add_edges(edge_names.concat([opts.default_label]))
+						} else {
+							add_edges(edge_names);
 						}
-						forEach(names, function(edge_name){
-							found_named_edges.push({
-								value:edge_name
-								,target:edge_target
-							//	,en:edge_names
-							//	,bt:backtrack
+						function add_edges(names){
+							forEach(names, function(edge_name){
+								found_named_edges.push({
+									value:edge_name
+									,target:edge_target
+									,en:names
+									,bt:backtrack
+								})
 							})
-						})
+						}
 					} else {
 						found_named_edges = found_named_edges
 						.concat(named_edges_from(
@@ -464,7 +467,17 @@ var drawvascript = (function(){
 				forEach(nodes, function(node){
 					console.log(node.value + " (" + node.id + ")")
 					forEach(node.edges, function(edge){
-						console.log("	over [" + edge.value + "] to ["+edge.target.value  + "] (" + edge.target.id + ")")
+						var bt = "[ ";
+						forEach(edge.bt, function(b){
+							bt += b + " ";
+						})
+						bt += "]";
+						var en = "[ ";
+						forEach(edge.en, function(b){
+							en += b + " ";
+						})
+						en += "]";
+						console.log("	over [" + edge.value + "] to ["+edge.target.value  + "] (" + edge.target.id + ") ")
 					})
 				})
 			}
@@ -492,7 +505,7 @@ var drawvascript = (function(){
 				})
 				// traverses only nodes reachable from a given node
 				from_node(get_root(labeled_graph), function(from, to, via){
-				//	console.log(from.value + " > " + via + " > " + to.value);
+					//console.log(from.value + " > " + via + " > " + to.value);
 					event_graph[from.id].flow[via] = event_graph[from.id].flow[via] || event();
 					event_graph[from.id].flow[via].on(event_graph[to.id].emit);
 				});
@@ -618,6 +631,7 @@ var drawvascript = (function(){
 	        }, 0)
 	    }
 	    var self = {
+	//		ls :function(){return listeners;},
 	        on : function(new_listener){
 	            listeners[listeners.length] = new_listener;
 	            if(data != no_data){
