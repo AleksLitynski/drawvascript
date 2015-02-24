@@ -36,37 +36,37 @@ var interleaver = drawvascript.create([
 },{
     debug:{
         graph : false,
-        labeled_graph:true
+        labeled_graph:false
 
     }
 });
 
 
-// this event is also raised when registered,
-// because .right already has a value (the inital value)
+
 interleaver.on(function(s){
-    console.log("in grumble", s.data.chn);
+    console.log("all done with: ", s.data.msg);
 })
 
 
+
+
 interleaver.flow.right.emit({
-    count:1,
+    count:5,
     msg:"from the right",
     dir:"right",
     delay:200,
     chn:[]});
 
+interleaver.flow.right.emit({
+    count:10,
+    msg:"from the right 2",
+    dir:"right",
+    delay:100,
+    chn:[]});
 
-
-
-
-    /*interleaver.flow.right.emit({
-        count:10,
-        msg:"from the right 2",
-        dir:"right",
-        delay:100});
-    interleaver.flow.left.emit({
-        count:6,
-        msg:"from the left",
-        dir:"left",
-        delay:700});*/
+interleaver.flow.left.emit({
+    count:6,
+    msg:"from the left",
+    dir:"left",
+    delay:700,
+    chn:[]});
