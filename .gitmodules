@@ -1,6 +1,3 @@
-[submodule "tests/marquee/engine"]
-	path = tests/marquee/engine
-	url = https://github.com/gss/engine.git
 [submodule "tests/marquee/morpheus"]
 	path = tests/marquee/morpheus
 	url = https://github.com/ded/morpheus.git
